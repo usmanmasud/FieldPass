@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-build-push:
+    runs-on: ubuntu-latest
+    env:
+      AT_REGISTRY: ${{ secrets.AT_REGISTRY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+      - name: Build image
+        run: docker build -t fieldpass:${{ github.sha }} .
+
+      # Set AT_REGISTRY, AT_REGISTRY_USER and AT_REGISTRY_PASSWORD as repository
+      # secrets (values come from the marketplace submission form) to push.
+      - name: Push to AT container registry
+        if: github.event_name == 'push' && env.AT_REGISTRY != ''
+        run: |
+          echo "${{ secrets.AT_REGISTRY_PASSWORD }}" | docker login "$AT_REGISTRY" -u "${{ secrets.AT_REGISTRY_USER }}" --password-stdin
+          docker tag fieldpass:${{ github.sha }} "$AT_REGISTRY/fieldpass:latest"
+          docker tag fieldpass:${{ github.sha }} "$AT_REGISTRY/fieldpass:${{ github.sha }}"
+          docker push "$AT_REGISTRY/fieldpass:latest"
+          docker push "$AT_REGISTRY/fieldpass:${{ github.sha }}"

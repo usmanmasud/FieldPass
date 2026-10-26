@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FieldPass Simulator</title>
+  <link rel="icon" href="/logo.svg">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .phones { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+    .phone { background: #22282a; border-radius: 28px; padding: 16px; color: #e9efe9; }
+    .phone h3 { margin: 0 0 10px; font-size: 15px; display: flex; justify-content: space-between; align-items: center; }
+    .phone input { width: 100%; }
+    .num { display: flex; gap: 6px; margin-bottom: 10px; }
+    .screen { background: #cfdccb; color: #13210f; font-family: ui-monospace, Consolas, monospace; font-size: 14px; border-radius: 10px;
+      min-height: 190px; padding: 10px; white-space: pre-wrap; margin-bottom: 8px; }
+    .screen.idle { color: #556a52; }
+    .reply { display: flex; gap: 6px; margin-bottom: 12px; }
+    .tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+    .tabs button { flex: 1; background: #3a4346; } .tabs button.on { background: var(--accent); color: #1d2a22; }
+    .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px; }
+    .keypad button { background: #3a4346; font-size: 18px; padding: 10px; }
+    .inbox { background: #11171a; border-radius: 10px; padding: 8px; max-height: 230px; overflow: auto; font-size: 13px; }
+    .msg { background: #2b3437; border-radius: 10px; padding: 7px 9px; margin-bottom: 6px; }
+    .msg small { display: block; color: #9fb0a5; font-size: 11px; margin-bottom: 2px; }
+    .msg.airtime { background: #3b3420; } .msg.voice { background: #1f2d44; }
+    .say { background: #1f2d44; }
+    .hint { font-size: 13px; color: var(--muted); }
+  </style>
+</head>
+<body>
+<header class="top">
+  <img src="/logo.svg" alt="">
+  <div><h1>FieldPass</h1><small>Phone simulator - USSD, voice and SMS without a real phone</small></div>
+  <nav><a href="/">Home</a><a href="/dashboard">Dashboard</a></nav>
+</header>
+<main>
+  <p class="hint">Each phone calls this instance's real <code>/ussd</code>, <code>/voice</code> and <code>/sms</code> endpoints, as Africa's Talking would. The inbox shows every SMS, airtime top-up and call sent to that number.
+    Demo: the farmer registers and adds a field, then opens the stalks. The herder gets an alert and books. The farmer enters the pass code and both receive airtime.</p>
+  <div class="phones" id="phones"></div>
+</main>
+
+<template id="phone-tpl">
+  <div class="phone">
+    <h3><span class="label"></span><span class="hint" style="color:#9fb0a5" data-ussd></span></h3>
+    <div class="num"><input class="number"><button class="reset ghost" style="color:#e9efe9;border-color:#5d6b62" title="New number">New</button></div>
+    <div class="tabs"><button class="on" data-tab="ussd">USSD</button><button data-tab="voice">Call</button><button data-tab="sms">SMS</button></div>
+
+    <div data-pane="ussd">
+      <div class="screen idle">Press Dial to start a USSD session.</div>
+      <div class="reply"><input class="input" placeholder="Reply" inputmode="numeric"><button class="send">Send</button></div>
+      <div class="reply"><button class="dial" style="flex:1">Dial</button><button class="cancel ghost" style="color:#e9efe9;border-color:#5d6b62">End</button></div>
+    </div>
+
+    <div data-pane="voice" hidden>
+      <div class="screen idle voice-screen">Call the FieldPass line. Ward codes: 101 Dawanau, 103 Gezawa, 108 Kura...</div>
+      <div class="keypad">
+        <button>1</button><button>2</button><button>3</button><button>4</button><button>5</button><button>6</button>
+        <button>7</button><button>8</button><button>9</button><button>*</button><button>0</button><button>#</button>
+      </div>
+      <div class="reply"><button class="call" style="flex:1">Call</button><button class="hangup ghost" style="color:#e9efe9;border-color:#5d6b62">Hang up</button></div>
+    </div>
+
+    <div data-pane="sms" hidden>
+      <div class="reply"><input class="sms-text" placeholder="e.g. FIELDS 101 / BOOK 2 / DONE 4821"><button class="sms-send">Send</button></div>
+    </div>
+
+    <div class="inbox"><div class="hint" style="color:#7d8f84">Inbox is empty</div></div>
+  </div>
+</template>
+
+<script>
+const $tpl = document.getElementById('phone-tpl');
+let USSD_CODE = '*384*1234#';
+const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const randomNumber = () => `+23480${Math.floor(10000000 + Math.random() * 89999999)}`;
+const form = (url, data) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(data) }).then((r) => r.text());
+
+function makePhone(label, storageKey) {
+  const el = $tpl.content.firstElementChild.cloneNode(true);
+  const q = (s) => el.querySelector(s);
+  q('.label').textContent = label;
+  q('[data-ussd]').textContent = USSD_CODE;
+  let number;
+  try { number = localStorage.getItem(storageKey); } catch {}
+  q('.number').value = number || randomNumber();
+  const phone = () => q('.number').value.trim();
+  const remember = () => { try { localStorage.setItem(storageKey, phone()); } catch {} };
+  remember();
+  q('.number').onchange = () => { remember(); lastId = 0; q('.inbox').innerHTML = ''; };
+  q('.reset').onclick = () => { q('.number').value = randomNumber(); q('.number').onchange(); };
+
+  // tabs
+  el.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => {
+    el.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('on', x === b));
+    el.querySelectorAll('[data-pane]').forEach((p) => { p.hidden = p.dataset.pane !== b.dataset.tab; });
+  });
+
+  // USSD
+  let session = null, text = '';
+  const screen = q('[data-pane=ussd] .screen');
+  async function ussd() {
+    const res = await form('/ussd', { sessionId: session, serviceCode: USSD_CODE, phoneNumber: phone(), text, networkCode: '62130' });
+    screen.classList.remove('idle');
+    screen.textContent = res.replace(/^(CON|END) /, '');
+    if (res.startsWith('END')) { session = null; screen.textContent += '\n\n[session ended]'; }
+    q('.input').focus();
+  }
+  q('.dial').onclick = () => { session = `sim-${Date.now()}`; text = ''; ussd(); };
+  q('.cancel').onclick = () => { session = null; screen.classList.add('idle'); screen.textContent = 'Session ended.'; };
+  const send = () => {
+    const v = q('.input').value.trim();
+    if (!session || v === '') return;
+    text = text === '' ? v : `${text}*${v}`;
+    q('.input').value = '';
+    ussd();
+  };
+  q('.send').onclick = send;
+  q('.input').onkeydown = (e) => { if (e.key === 'Enter') send(); };
+
+  // Voice: render <Say> text, collect DTMF for <GetDigits>
+  const vscreen = q('.voice-screen');
+  let call = null; // { sessionId, callbackUrl, numDigits, finishOnKey, digits }
+  function renderXml(xml) {
+    const doc = new DOMParser().parseFromString(xml || '<Response/>', 'application/xml');
+    const says = [...doc.getElementsByTagName('Say')].map((s) => s.textContent);
+    const gd = doc.getElementsByTagName('GetDigits')[0];
+    vscreen.classList.remove('idle');
+    if (gd) {
+      const u = new URL(gd.getAttribute('callbackUrl'), location.href);
+      call.callbackUrl = u.pathname + u.search;
+      call.numDigits = Number(gd.getAttribute('numDigits')) || 0;
+      call.finishOnKey = gd.getAttribute('finishOnKey') || '#';
+      call.digits = '';
+      vscreen.textContent = `🔊 ${says[0] || ''}\n\n⌨ waiting for keypad...`;
+    } else {
+      vscreen.textContent = `🔊 ${says.join(' ')}\n\n[call ended]`;
+      call = null;
+    }
+  }
+  q('.call').onclick = async () => {
+    call = { sessionId: `simcall-${Date.now()}` };
+    vscreen.textContent = 'Ringing...';
+    renderXml(await form('/voice', { isActive: '1', sessionId: call.sessionId, callerNumber: phone(), direction: 'Inbound', destinationNumber: '+2347000000000' }));
+  };
+  q('.hangup').onclick = () => { call = null; vscreen.textContent = 'Call ended.'; };
+  q('.keypad').onclick = async (e) => {
+    const k = e.target.textContent;
+    if (!call || !call.callbackUrl || e.target.tagName !== 'BUTTON') return;
+    const done = k === call.finishOnKey;
+    if (!done) call.digits += k;
+    vscreen.textContent = vscreen.textContent.replace(/⌨.*$/, `⌨ ${call.digits}`);
+    if (done || (call.numDigits && call.digits.length >= call.numDigits)) {
+      renderXml(await form(call.callbackUrl, { isActive: '1', sessionId: call.sessionId, callerNumber: phone(), dtmfDigits: call.digits }));
+    }
+  };
+
+  // SMS
+  q('.sms-send').onclick = async () => {
+    const t = q('.sms-text').value.trim();
+    if (!t) return;
+    await form('/sms', { from: phone(), to: '12345', text: t, date: new Date().toISOString(), id: `sim-${Date.now()}` });
+    q('.sms-text').value = '';
+  };
+
+  // Inbox polling
+  let lastId = 0;
+  setInterval(async () => {
+    const res = await fetch(`/api/messages?phone=${encodeURIComponent(phone())}&since=${lastId}`);
+    if (!res.ok) return;
+    const msgs = await res.json();
+    if (!msgs.length) return;
+    const box = q('.inbox');
+    if (!lastId) box.innerHTML = '';
+    for (const m of msgs) {
+      lastId = Math.max(lastId, m.id);
+      const icon = m.channel === 'airtime' ? '💰 Airtime' : m.channel === 'voice' ? '📞 Incoming call' : '✉ SMS';
+      box.insertAdjacentHTML('afterbegin', `<div class="msg ${m.channel}"><small>${icon} - ${m.created_at.slice(11, 16)} - ${esc(m.status)}</small>${esc(m.body)}</div>`);
+    }
+  }, 1500);
+
+  return el;
+}
+
+fetch('/info.json').then((r) => r.json()).catch(() => ({})).then((info) => {
+  if (info.ussdCode) USSD_CODE = info.ussdCode;
+  const root = document.getElementById('phones');
+  root.append(makePhone('Farmer phone', 'fp-farmer'), makePhone('Herder phone', 'fp-herder'), makePhone('Mediator / other', 'fp-other'));
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FieldPass</title>
+  <link rel="icon" href="/logo.svg">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .hero { display: grid; grid-template-columns: 1fr; gap: 16px; padding: 24px 0; }
+    .hero h2 { font-size: clamp(26px, 4vw, 40px); margin: 0; line-height: 1.15; }
+    .hero p { font-size: 17px; color: var(--muted); max-width: 720px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+    .grid h3 { margin: 4px 0 6px; font-size: 16px; }
+    .grid p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    code { background: #efe9dc; padding: 2px 6px; border-radius: 6px; font-size: 13px; word-break: break-all; }
+    .cta { display: flex; gap: 10px; flex-wrap: wrap; }
+    .cta a { text-decoration: none; }
+  </style>
+</head>
+<body>
+<header class="top">
+  <img src="/logo.svg" alt="">
+  <div><h1>FieldPass</h1><small>Burtali - harvest stalks for peaceful grazing</small></div>
+  <nav><a href="/dashboard">Dashboard</a><a href="/simulator">Phone simulator</a></nav>
+</header>
+<main>
+  <section class="hero">
+    <h2>Harvest leftovers become grazing deals, not fights.</h2>
+    <p>Farmers mark which fields are still standing and which are harvested. Herders hear where they can graze and where to stay out.
+      Leftover stalks are traded for a fee, for manure, or for free, with a pass code for every herd. It works on any phone through USSD, voice calls and SMS.</p>
+    <div class="cta"><a class="btn" href="/simulator">Try it on the simulator</a><a class="btn ghost" style="border:1px solid var(--brand);color:var(--brand);background:transparent" href="/dashboard">Open dashboard</a></div>
+  </section>
+
+  <section class="grid">
+    <div class="panel"><h2>Farmers - USSD</h2><h3>Dial <span id="ussd">*384*1234#</span></h3><p>Register fields, mark them harvested, open stalks to herds with your terms, confirm the herd left with its pass code, report damage. Hausa or English.</p></div>
+    <div class="panel"><h2>Herders - Voice</h2><h3>Call and press a ward code</h3><p>Hear how many fields are open and which standing fields to avoid. Press 1 to book. The pass code is read out and sent by SMS.</p></div>
+    <div class="panel"><h2>Everyone - SMS</h2><h3>Alerts and pass codes</h3><p>Herders get alerts when fields open on their route. Mediators (Ardo, village head, ADP officer) are alerted the moment damage is reported.</p></div>
+    <div class="panel"><h2>Airtime</h2><h3>Paid for keeping the peace</h3><p>Farmers earn airtime for timely harvest updates. Both sides earn airtime when a deal closes with no damage.</p></div>
+  </section>
+
+  <section class="panel" style="margin-top:16px">
+    <h2>Set up this instance</h2>
+    <p class="muted" style="margin-top:0">Mode: <strong id="mode">-</strong>. In your Africa's Talking account, point these callbacks at this instance:</p>
+    <table>
+      <tr><th>USSD callback</th><td><code id="cb-ussd"></code></td></tr>
+      <tr><th>Voice callback</th><td><code id="cb-voice"></code></td></tr>
+      <tr><th>Incoming SMS callback</th><td><code id="cb-sms"></code></td></tr>
+    </table>
+  </section>
+</main>
+<script>
+  fetch('/info.json').then((r) => r.json()).then((info) => {
+    document.getElementById('ussd').textContent = info.ussdCode;
+    document.getElementById('mode').textContent = info.mode;
+    for (const k of ['ussd', 'voice', 'sms']) document.getElementById(`cb-${k}`).textContent = info.callbacks[k];
+  });
+</script>
+</body>
+</html>

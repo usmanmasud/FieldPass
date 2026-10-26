@@ -1,0 +1,12 @@
+[
+  { "code": "101", "name": "Dawanau", "lga": "Dawakin Tofa", "lat": 12.055, "lng": 8.43 },
+  { "code": "102", "name": "Dawakin Tofa", "lga": "Dawakin Tofa", "lat": 12.105, "lng": 8.335 },
+  { "code": "103", "name": "Gezawa", "lga": "Gezawa", "lat": 12.098, "lng": 8.755 },
+  { "code": "104", "name": "Jogana", "lga": "Gezawa", "lat": 12.13, "lng": 8.8 },
+  { "code": "105", "name": "Ungogo", "lga": "Ungogo", "lat": 12.085, "lng": 8.5 },
+  { "code": "106", "name": "Bichi", "lga": "Bichi", "lat": 12.233, "lng": 8.24 },
+  { "code": "107", "name": "Minjibir", "lga": "Minjibir", "lat": 12.18, "lng": 8.66 },
+  { "code": "108", "name": "Kura", "lga": "Kura", "lat": 11.772, "lng": 8.43 },
+  { "code": "109", "name": "Garun Mallam", "lga": "Garun Mallam", "lat": 11.66, "lng": 8.38 },
+  { "code": "110", "name": "Kadawa", "lga": "Garun Mallam", "lat": 11.635, "lng": 8.44 }
+]

@@ -1,0 +1,47 @@
+:root {
+  --bg: #f6f3ec;
+  --panel: #ffffff;
+  --ink: #1d2a22;
+  --muted: #66736a;
+  --line: #e2ddd0;
+  --brand: #1f5135;
+  --accent: #e8b04a;
+  --standing: #c97a12;
+  --open: #2f8f4e;
+  --booked: #2b62c4;
+  --harvested: #8a857a;
+  --danger: #c73a2e;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--ink);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); }
+a { color: var(--brand); }
+header.top {
+  display: flex; align-items: center; gap: 12px; padding: 12px 20px;
+  background: var(--brand); color: #fff;
+}
+header.top img { width: 36px; height: 36px; border-radius: 9px; }
+header.top h1 { font-size: 18px; margin: 0; }
+header.top small { opacity: .75; }
+header.top nav { margin-left: auto; display: flex; gap: 14px; flex-wrap: wrap; }
+header.top nav a { color: #fff; text-decoration: none; opacity: .85; font-size: 14px; }
+header.top nav a:hover { opacity: 1; }
+main { max-width: 1280px; margin: 0 auto; padding: 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.panel h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 10px; }
+button, .btn {
+  background: var(--brand); color: #fff; border: 0; border-radius: 8px; padding: 8px 12px;
+  font: inherit; font-size: 14px; cursor: pointer;
+}
+button.ghost { background: transparent; color: var(--brand); border: 1px solid var(--brand); }
+input, select { font: inherit; font-size: 14px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); min-width: 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; color: #fff; }
+.s-standing { background: var(--standing); } .s-open { background: var(--open); } .s-booked, .s-active { background: var(--booked); }
+.s-harvested, .s-closed, .s-ended, .s-resolved { background: var(--harvested); } .s-completed { background: var(--open); }
+.s-disputed, .s-failed { background: var(--danger); } .s-dry-run, .s-sent, .s-Success, .s-queued { background: #5d6b62; }
+.muted { color: var(--muted); }
+.scroll { max-height: 340px; overflow: auto; }
