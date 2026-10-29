@@ -37,7 +37,7 @@ Copy these into the "Create Your Own Plugin" form.
 | `AT_API_KEY` | yes | Africa's Talking API key. If empty, runs in dry-run mode and only logs messages |
 | `AT_SENDER_ID` | no | Alphanumeric sender ID / shortcode for SMS |
 | `AT_VOICE_NUMBER` | for voice | Your AT voice number (used for outbound alerts) |
-| `USSD_CODE` | yes | Your USSD code, e.g. `*384*1234#`, shown in SMS messages |
+| `USSD_CODE` | yes | Your USSD code, e.g. `*384*47704#`, shown in SMS messages |
 | `PUBLIC_URL` | no | Public URL of the instance, used for voice callback URLs |
 | `ADMIN_PASSWORD` | recommended | Protects the dashboard, simulator and API |
 | `DEFAULT_LANG` | no | `ha` (default) or `en` |

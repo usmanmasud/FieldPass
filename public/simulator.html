@@ -71,7 +71,7 @@
 
 <script>
 const $tpl = document.getElementById('phone-tpl');
-let USSD_CODE = '*384*1234#';
+let USSD_CODE = '*384*47704#';
 const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 const randomNumber = () => `+23480${Math.floor(10000000 + Math.random() * 89999999)}`;
 const form = (url, data) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(data) }).then((r) => r.text());

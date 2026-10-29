@@ -11,7 +11,7 @@ const config = {
   // Render sets RENDER_EXTERNAL_URL automatically (https://<service>.onrender.com).
   publicUrl: (env.PUBLIC_URL || env.RENDER_EXTERNAL_URL || '').replace(/\/$/, ''),
   orgName: env.ORG_NAME || 'FieldPass',
-  ussdCode: env.USSD_CODE || '*384*1234#',
+  ussdCode: env.USSD_CODE || '*384*47704#',
   defaultLang: env.DEFAULT_LANG === 'en' ? 'en' : 'ha',
   countryCode: env.COUNTRY_CODE || '234',
   currency: env.CURRENCY || 'NGN',
