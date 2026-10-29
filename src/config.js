@@ -8,7 +8,8 @@ const atUsername = env.AT_USERNAME || 'sandbox';
 const config = {
   port: num(env.PORT, 3000),
   dbPath: env.DB_PATH || './data/fieldpass.db',
-  publicUrl: (env.PUBLIC_URL || '').replace(/\/$/, ''),
+  // Render sets RENDER_EXTERNAL_URL automatically (https://<service>.onrender.com).
+  publicUrl: (env.PUBLIC_URL || env.RENDER_EXTERNAL_URL || '').replace(/\/$/, ''),
   orgName: env.ORG_NAME || 'FieldPass',
   ussdCode: env.USSD_CODE || '*384*1234#',
   defaultLang: env.DEFAULT_LANG === 'en' ? 'en' : 'ha',

@@ -1,0 +1,36 @@
+# Render Blueprint: New > Blueprint > pick this repo.
+services:
+  - type: web
+    name: fieldpass
+    runtime: docker
+    plan: free            # free instances sleep after 15 min idle and have no persistent disk
+    region: frankfurt     # closest Render region to Nigeria
+    branch: main
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: AT_USERNAME
+        value: sandbox
+      - key: AT_API_KEY
+        sync: false       # entered in the Render dashboard, never committed
+      - key: AT_SENDER_ID
+        sync: false
+      - key: AT_VOICE_NUMBER
+        sync: false
+      - key: USSD_CODE
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: DEFAULT_LANG
+        value: ha
+      - key: SEED_DEMO
+        value: "true"
+      - key: REWARD_MIN_FIELD_AGE_DAYS
+        value: "0"
+      - key: DB_PATH
+        value: /data/fieldpass.db
+    # For data that survives redeploys, switch plan to "starter" and uncomment:
+    # disk:
+    #   name: fieldpass-data
+    #   mountPath: /data
+    #   sizeGB: 1
