@@ -6,18 +6,13 @@ import { handleUssd } from './ussd.js';
 import { handleVoice } from './voice.js';
 import { handleSms } from './sms.js';
 import { api } from './api.js';
+import { isAuthed, login, logout, requireAuth } from './auth.js';
 
-const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const publicDir = path.join(root, 'public');
+const viewsDir = path.join(root, 'views'); // admin pages, only served after login
 
 const baseUrl = (req) => config.publicUrl || `${req.protocol}://${req.get('host')}`;
-
-function adminAuth(req, res, next) {
-  if (!config.adminPassword) return next();
-  const [, encoded = ''] = (req.headers.authorization || '').split(' ');
-  const password = Buffer.from(encoded, 'base64').toString().split(':').slice(1).join(':');
-  if (password === config.adminPassword) return next();
-  res.set('WWW-Authenticate', 'Basic realm="FieldPass admin"').status(401).send('Authentication required');
-}
 
 export function createApp() {
   const app = express();
@@ -35,19 +30,29 @@ export function createApp() {
     res.sendStatus(200);
   });
 
-  // Public, non-secret info for the landing page
+  // Public, non-secret info for the landing and login pages
   app.get('/info.json', (req, res) => res.json({
     orgName: config.orgName,
     ussdCode: config.ussdCode,
     voiceNumber: config.at.voiceNumber,
     mode: config.dryRun ? 'dry-run' : config.at.sandbox ? 'sandbox' : 'live',
+    authRequired: Boolean(config.adminPassword),
     callbacks: { ussd: `${baseUrl(req)}/ussd`, voice: `${baseUrl(req)}/voice`, sms: `${baseUrl(req)}/sms` },
   }));
 
-  app.use(['/dashboard', '/simulator', '/api'], adminAuth);
+  app.get('/login', (req, res) => {
+    const next = String(req.query.next || '');
+    // Only same-site paths, never "//other.site"
+    if (isAuthed(req)) return res.redirect(/^\/(?!\/)/.test(next) ? next : '/dashboard');
+    res.sendFile(path.join(publicDir, 'login.html'));
+  });
+  app.post('/auth/login', login);
+  app.post('/auth/logout', logout);
+
+  app.use(['/dashboard', '/simulator', '/api'], requireAuth);
   app.use('/api', api);
-  app.get('/dashboard', (req, res) => res.sendFile(path.join(publicDir, 'dashboard.html')));
-  app.get('/simulator', (req, res) => res.sendFile(path.join(publicDir, 'simulator.html')));
-  app.use(express.static(publicDir, { index: 'index.html', extensions: ['html'] }));
+  app.get('/dashboard', (req, res) => res.sendFile(path.join(viewsDir, 'dashboard.html')));
+  app.get('/simulator', (req, res) => res.sendFile(path.join(viewsDir, 'simulator.html')));
+  app.use(express.static(publicDir, { index: 'index.html' }));
   return app;
 }

@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FieldPass Dashboard</title>
+  <link rel="icon" href="/logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/style.css">
+  <script>try { const t = localStorage.getItem('fp-theme'); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
+  <style>
+    body { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+
+    /* sidebar */
+    .side { position: sticky; top: 0; height: 100vh; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 16px 12px; z-index: 1000; }
+    .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 18px; font-weight: 800; font-size: 17px; letter-spacing: -.01em; }
+    .brand img { width: 34px; height: 34px; border-radius: 10px; }
+    .brand small { display: block; font-weight: 500; font-size: 11.5px; color: var(--muted); letter-spacing: 0; }
+    .nav { display: flex; flex-direction: column; gap: 2px; }
+    .nav a { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; color: var(--ink-2); text-decoration: none; font-weight: 500; }
+    .nav a:hover { background: var(--panel-2); color: var(--ink); }
+    .nav a.on { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
+    .nav .badge { margin-left: auto; background: var(--danger); color: #fff; font-size: 11px; font-weight: 700; border-radius: 99px; padding: 1px 7px; }
+    .nav .badge:empty { display: none; }
+    .nav-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 14px 10px 6px; font-weight: 600; }
+    .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
+    .instance { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 12.5px; }
+    .instance b { display: block; font-size: 13px; }
+    .side-actions { display: flex; gap: 6px; }
+    .side-actions .btn { flex: 1; }
+
+    /* main */
+    .main { min-width: 0; display: flex; flex-direction: column; }
+    .topbar { position: sticky; top: 0; z-index: 900; display: flex; align-items: center; gap: 12px; padding: 14px 24px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+    .topbar h1 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
+    .topbar .sub { color: var(--muted); font-size: 13px; }
+    .topbar .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+    .live { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); padding: 5px 10px; border-radius: 99px; background: var(--panel); border: 1px solid var(--line); }
+    .live i { width: 8px; height: 8px; border-radius: 50%; background: var(--open); box-shadow: 0 0 0 0 var(--open); animation: pulse 2s infinite; }
+    .live.off i { background: var(--danger); animation: none; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--open) 60%, transparent); } 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+    .topbar .menu-btn { display: none; }
+    .content { padding: 20px 24px 40px; }
+    .view { display: none; }
+    .view.on { display: block; animation: fade .18s ease-out; }
+    @keyframes fade { from { opacity: 0; transform: translateY(4px); } }
+
+    /* KPI */
+    .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .kpi { padding: 14px 16px; position: relative; overflow: hidden; }
+    .kpi .ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; margin-bottom: 10px; }
+    .kpi .v { font-size: 28px; font-weight: 800; letter-spacing: -.02em; line-height: 1; }
+    .kpi .l { font-weight: 600; margin-top: 6px; font-size: 13px; }
+    .kpi .f { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .t-standing { background: var(--standing-soft); color: var(--standing); }
+    .t-open { background: var(--open-soft); color: var(--open); }
+    .t-booked { background: var(--booked-soft); color: var(--booked); }
+    .t-danger { background: var(--danger-soft); color: var(--danger); }
+    .t-brand { background: var(--brand-soft); color: var(--brand); }
+    .t-accent { background: var(--accent-soft); color: #b07612; }
+
+    .grid-2 { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; margin-bottom: 16px; }
+    .grid-eq { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-bottom: 16px; }
+    .map { height: 420px; border-radius: 10px; z-index: 0; }
+    .map-full { height: calc(100vh - 150px); min-height: 420px; border-radius: var(--radius); }
+    .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 10px; }
+    .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+
+    /* attention + feed */
+    .list { display: flex; flex-direction: column; }
+    .li { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); align-items: flex-start; }
+    .li:last-child { border-bottom: 0; }
+    .li .dot { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; flex: none; }
+    .li .dot .svg-i { width: 16px; height: 16px; }
+    .li .tx { min-width: 0; flex: 1; }
+    .li .tx b { font-weight: 600; }
+    .li .tx .cell-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .li .when { color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .scroll { max-height: 420px; overflow: auto; }
+
+    /* ward bars */
+    .ward { display: grid; grid-template-columns: 130px 1fr 74px; gap: 12px; align-items: center; padding: 8px 0; }
+    .ward .nm { font-weight: 600; } .ward .nm small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; }
+    .bar { display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: var(--bg-2); }
+    .bar span { display: block; height: 100%; }
+    .ward .ct { text-align: right; color: var(--muted); font-size: 12.5px; }
+
+    /* toolbars */
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+    .toolbar .search { position: relative; margin-left: auto; }
+    .toolbar .search .input { padding-left: 34px; width: 240px; }
+    .toolbar .search .svg-i { position: absolute; left: 10px; top: 10px; width: 16px; height: 16px; color: var(--muted); }
+    .code { font-family: ui-monospace, Consolas, monospace; font-weight: 700; font-size: 15px; letter-spacing: .08em; background: var(--bg-2); padding: 3px 8px; border-radius: 7px; }
+    .progress { height: 5px; background: var(--bg-2); border-radius: 99px; margin-top: 6px; overflow: hidden; width: 120px; }
+    .progress span { display: block; height: 100%; background: var(--booked); }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 12.5px; flex: none; }
+    .who { display: flex; gap: 10px; align-items: center; }
+
+    /* incidents */
+    .inc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+    .inc { padding: 16px; border-left: 4px solid var(--danger); }
+    .inc.resolved { border-left-color: var(--harvested); opacity: .85; }
+    .inc h4 { margin: 8px 0 4px; font-size: 15px; }
+    .inc .meta { color: var(--muted); font-size: 13px; display: grid; gap: 3px; margin-bottom: 12px; }
+
+    /* settings */
+    .kv { display: grid; grid-template-columns: 150px 1fr auto; gap: 8px 12px; align-items: center; }
+    .kv .k { color: var(--muted); font-size: 13px; }
+    .form-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .form-row .input { flex: 1; min-width: 110px; }
+    .actions-list { display: grid; gap: 10px; }
+    .action { display: flex; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
+    .action .act-ic { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; flex: none; }
+    .action .tx { flex: 1; } .action .tx b { display: block; }
+
+    :root[data-theme="dark"] .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6); }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6); } }
+    .leaflet-popup-content-wrapper { border-radius: 12px; }
+    .leaflet-popup-content { font-family: var(--font); font-size: 13px; line-height: 1.5; margin: 12px 14px; }
+    .ward-chip { position: absolute; z-index: 500; top: 12px; right: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 10px; width: 220px; max-height: calc(100% - 24px); overflow: auto; }
+    .ward-chip button { display: flex; width: 100%; justify-content: space-between; background: none; border: 0; padding: 7px 8px; border-radius: 8px; cursor: pointer; color: var(--ink); font: 13px var(--font); }
+    .ward-chip button:hover { background: var(--panel-2); }
+
+    @media (max-width: 1200px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 980px) {
+      body { grid-template-columns: 1fr; }
+      .side { position: fixed; left: 0; top: 0; bottom: 0; width: 260px; transform: translateX(-100%); transition: transform .2s; box-shadow: var(--shadow-lg); }
+      body.nav-open .side { transform: none; }
+      .topbar .menu-btn { display: inline-flex; }
+      .grid-2, .grid-eq { grid-template-columns: 1fr; }
+      .topbar { padding: 12px 16px; } .content { padding: 16px; }
+      .topbar .hide-sm { display: none; }
+      .toolbar .search { margin-left: 0; width: 100%; } .toolbar .search .input { width: 100%; }
+    }
+    @media (max-width: 560px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ward { grid-template-columns: 100px 1fr 56px; } }
+  </style>
+</head>
+<body>
+<aside class="side">
+  <div class="brand"><img src="/logo.svg" alt=""><div>FieldPass<small>Ward dashboard</small></div></div>
+  <nav class="nav" id="nav">
+    <a href="#overview" data-v="overview"><svg class="svg-i" viewBox="0 0 24 24" data-icon="overview"></svg>Overview</a>
+    <a href="#map" data-v="map"><svg class="svg-i" viewBox="0 0 24 24" data-icon="map"></svg>Field map</a>
+    <a href="#fields" data-v="fields"><svg class="svg-i" viewBox="0 0 24 24" data-icon="sprout"></svg>Fields</a>
+    <a href="#deals" data-v="deals"><svg class="svg-i" viewBox="0 0 24 24" data-icon="ticket"></svg>Grazing deals</a>
+    <a href="#incidents" data-v="incidents"><svg class="svg-i" viewBox="0 0 24 24" data-icon="alert"></svg>Damage reports<span class="badge" id="badge-inc"></span></a>
+    <a href="#people" data-v="people"><svg class="svg-i" viewBox="0 0 24 24" data-icon="users"></svg>People</a>
+    <a href="#messages" data-v="messages"><svg class="svg-i" viewBox="0 0 24 24" data-icon="message"></svg>Messages</a>
+    <div class="nav-label">Manage</div>
+    <a href="#settings" data-v="settings"><svg class="svg-i" viewBox="0 0 24 24" data-icon="settings"></svg>Settings</a>
+    <a href="/simulator"><svg class="svg-i" viewBox="0 0 24 24" data-icon="phone"></svg>Phone simulator</a>
+  </nav>
+  <div class="side-foot">
+    <div class="instance"><b id="inst-mode">-</b><span class="muted">USSD <span id="inst-ussd">-</span></span></div>
+    <div class="side-actions">
+      <button class="btn ghost sm" id="theme" title="Toggle theme"><svg class="svg-i" viewBox="0 0 24 24" data-icon="moon"></svg>Theme</button>
+      <button class="btn ghost sm" id="logout" title="Sign out"><svg class="svg-i" viewBox="0 0 24 24" data-icon="logout"></svg>Sign out</button>
+    </div>
+  </div>
+</aside>
+
+<div class="main">
+  <header class="topbar">
+    <button class="btn ghost icon menu-btn" id="menu"><svg class="svg-i" viewBox="0 0 24 24" data-icon="menu"></svg></button>
+    <div><h1 id="title">Overview</h1><div class="sub" id="subtitle"></div></div>
+    <div class="right">
+      <span class="live hide-sm" id="live"><i></i><span id="live-t">Connecting…</span></span>
+      <button class="btn ghost sm hide-sm" id="btn-remind"><svg class="svg-i" viewBox="0 0 24 24" data-icon="bell"></svg>Send reminders</button>
+      <a class="btn sm" href="/simulator"><svg class="svg-i" viewBox="0 0 24 24" data-icon="phone"></svg>Simulator</a>
+    </div>
+  </header>
+
+  <div class="content">
+    <!-- OVERVIEW -->
+    <section class="view" id="v-overview">
+      <div class="kpis" id="kpis"></div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-h"><h3>Field status</h3><span class="sub">Feature phones have no GPS, so pins sit around each ward centre</span><div class="right"><a class="btn ghost sm" href="#map">Expand</a></div></div>
+          <div class="card-b"><div class="map" id="map-small"></div><div class="legend" id="legend-1"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>Needs attention</h3><div class="right"><span class="pill" id="att-count">0</span></div></div>
+          <div class="card-b scroll"><div class="list" id="attention"></div></div>
+        </div>
+      </div>
+      <div class="grid-eq">
+        <div class="card">
+          <div class="card-h"><h3>Wards</h3><span class="sub">Open · booked · standing · harvested</span></div>
+          <div class="card-b" id="ward-bars"></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>Live activity</h3><span class="sub">USSD, voice, SMS and airtime as they happen</span></div>
+          <div class="card-b scroll"><div class="list" id="feed"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAP -->
+    <section class="view" id="v-map">
+      <div class="toolbar"><div class="chips" id="map-filter"></div></div>
+      <div class="card" style="position:relative;padding:0;overflow:hidden">
+        <div class="map-full" id="map-big"></div>
+        <div class="ward-chip" id="ward-list"></div>
+      </div>
+      <div class="legend" id="legend-2"></div>
+    </section>
+
+    <!-- FIELDS -->
+    <section class="view" id="v-fields">
+      <div class="toolbar">
+        <div class="chips" id="fields-filter"></div>
+        <select class="input" id="fields-ward"><option value="">All wards</option></select>
+        <div class="search"><svg class="svg-i" viewBox="0 0 24 24" data-icon="search"></svg><input class="input" id="fields-q" placeholder="Search farmer, crop, field #"></div>
+      </div>
+      <div class="card table-wrap"><table class="t" id="fields-table"></table></div>
+    </section>
+
+    <!-- DEALS -->
+    <section class="view" id="v-deals">
+      <div class="toolbar">
+        <div class="chips" id="deals-filter"></div>
+        <div class="search"><svg class="svg-i" viewBox="0 0 24 24" data-icon="search"></svg><input class="input" id="deals-q" placeholder="Search code, herder, farmer"></div>
+      </div>
+      <div class="card table-wrap"><table class="t" id="deals-table"></table></div>
+    </section>
+
+    <!-- INCIDENTS -->
+    <section class="view" id="v-incidents">
+      <div class="toolbar"><div class="chips" id="inc-filter"></div></div>
+      <div class="inc-grid" id="inc-grid"></div>
+    </section>
+
+    <!-- PEOPLE -->
+    <section class="view" id="v-people">
+      <div class="toolbar">
+        <div class="chips" id="people-filter"></div>
+        <div class="search"><svg class="svg-i" viewBox="0 0 24 24" data-icon="search"></svg><input class="input" id="people-q" placeholder="Search name or phone"></div>
+      </div>
+      <div class="card table-wrap"><table class="t" id="people-table"></table></div>
+    </section>
+
+    <!-- MESSAGES -->
+    <section class="view" id="v-messages">
+      <div class="toolbar">
+        <div class="chips" id="msg-filter"></div>
+        <div class="search"><svg class="svg-i" viewBox="0 0 24 24" data-icon="search"></svg><input class="input" id="msg-q" placeholder="Search text or phone"></div>
+      </div>
+      <div class="card"><div class="card-b"><div class="list" id="msg-list"></div></div></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="v-settings">
+      <div class="grid-eq">
+        <div class="card">
+          <div class="card-h"><h3>Africa's Talking connection</h3></div>
+          <div class="card-b kv" id="instance-kv"></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>Actions</h3></div>
+          <div class="card-b actions-list">
+            <div class="action"><span class="act-ic t-accent"><svg class="svg-i" viewBox="0 0 24 24" data-icon="bell"></svg></span>
+              <div class="tx"><b>Send due reminders</b><span class="muted">Harvest-update SMS for overdue fields, and pass-code confirmations for ended bookings. Runs every hour automatically.</span></div>
+              <button class="btn sm" id="btn-remind-2">Run now</button></div>
+            <div class="action"><span class="act-ic t-brand"><svg class="svg-i" viewBox="0 0 24 24" data-icon="database"></svg></span>
+              <div class="tx"><b>Load demo season</b><span class="muted">Adds sample farmers, herders, fields, deals and incidents across Kano wards. Safe to run twice.</span></div>
+              <button class="btn ghost sm" id="btn-seed">Load</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid-eq">
+        <div class="card">
+          <div class="card-h"><h3>Mediators</h3><span class="sub">Alerted by SMS the moment damage is reported</span></div>
+          <div class="card-b">
+            <div class="table-wrap"><table class="t" id="med-table"></table></div>
+            <form class="form-row" id="med-form">
+              <input class="input" name="name" placeholder="Name" required>
+              <input class="input" name="phone" placeholder="Phone e.g. 0803..." required>
+              <input class="input" name="role" placeholder="Role (Ardo, village head…)">
+              <select class="input" name="ward_id" id="med-ward"><option value="">All wards</option></select>
+              <button class="btn"><svg class="svg-i" viewBox="0 0 24 24" data-icon="plus"></svg>Add</button>
+            </form>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>Wards</h3><span class="sub">Codes herders key in on voice and SMS</span></div>
+          <div class="card-b">
+            <div class="table-wrap scroll" style="max-height:300px"><table class="t" id="ward-table"></table></div>
+            <form class="form-row" id="ward-form">
+              <input class="input" name="code" placeholder="Code" required style="max-width:90px">
+              <input class="input" name="name" placeholder="Ward" required>
+              <input class="input" name="lga" placeholder="LGA" required>
+              <input class="input" name="lat" placeholder="Lat" style="max-width:90px">
+              <input class="input" name="lng" placeholder="Lng" style="max-width:90px">
+              <button class="btn"><svg class="svg-i" viewBox="0 0 24 24" data-icon="plus"></svg>Add</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+<div class="toasts" id="toasts"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ---------- helpers ----------
+const ICONS = {
+  overview: '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+  map: '<path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3-6-3z"/><path d="M9 3v15M15 6v15"/>',
+  sprout: '<path d="M7 20h10"/><path d="M12 20v-9"/><path d="M12 11c0-4 3-6 7-6 0 4-3 6-7 6z"/><path d="M12 13c0-3-2.5-5-6-5 0 3 2.5 5 6 5z"/>',
+  ticket: '<path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><path d="M13 6v2M13 11v2M13 16v2"/>',
+  alert: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  message: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  settings: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+  phone: '<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/>',
+  call: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>',
+  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+  moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+  coin: '<circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.4-1-1.3-1.5-2.5-1.5-1.4 0-2.5.8-2.5 2s1 1.6 2.5 2 2.5.8 2.5 2-1.1 2-2.5 2c-1.2 0-2.1-.5-2.5-1.5M12 6v2M12 16v2"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+  copy: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  trash: '<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+  menu: '<path d="M3 6h18M3 12h18M3 18h18"/>',
+  database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  cow: '<path d="M5 9c-2 0-3-2-3-3 2 0 3 1 3 1M19 9c2 0 3-2 3-3-2 0-3 1-3 1"/><path d="M5 7c0 0 1-3 7-3s7 3 7 3v6a7 7 0 0 1-14 0z"/><circle cx="9.5" cy="11" r=".5"/><circle cx="14.5" cy="11" r=".5"/><path d="M10 17h4"/>',
+};
+const icon = (n, cls = '') => `<svg class="svg-i ${cls}" viewBox="0 0 24 24">${ICONS[n] || ''}</svg>`;
+document.querySelectorAll('[data-icon]').forEach((s) => { s.innerHTML = ICONS[s.dataset.icon]; });
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const phone = (p) => (p || '').replace(/^\+234/, '0');
+const CROP = { sorghum: 'Sorghum', millet: 'Millet', maize: 'Maize', groundnut: 'Groundnut', cowpea: 'Cowpea', rice: 'Rice' };
+const LANDMARK = { road: 'the road', river: 'the river', school: 'school/mosque', market: 'the market', village: 'village edge', dam: 'dam/irrigation' };
+const SIZE = { small: '< 1 ha', medium: '1–3 ha', large: '> 3 ha' };
+const KIND = { standing_crop: 'Cattle in standing crop', during_booking: 'Damage during agreed grazing', stored_produce: 'Stored produce eaten', other: 'Other damage' };
+const STATUS = { standing: 'Standing', open: 'Open', booked: 'Booked', harvested: 'Harvested', closed: 'Closed' };
+const COLORS = { standing: '#c47612', open: '#2a8a4a', booked: '#2c62c2', harvested: '#857f72', closed: '#857f72' };
+const terms = (f) => f.terms === 'free' ? 'Free grazing' : f.terms === 'manure' ? 'Manure swap' : f.terms === 'price' ? `₦${f.price}/day` : '';
+const pill = (cls, label) => `<span class="pill ${esc(cls)}">${esc(label ?? cls)}</span>`;
+const ts = (s) => (s ? new Date(s.includes('T') ? s : `${s.replace(' ', 'T')}Z`) : null);
+function rel(s) {
+  const d = ts(s); if (!d) return '';
+  const m = Math.round((Date.now() - d) / 60000);
+  if (m < 1) return 'just now'; if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60); if (h < 24) return `${h}h ago`;
+  const dd = Math.round(h / 24); return dd < 30 ? `${dd}d ago` : d.toLocaleDateString();
+}
+const day = (d) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '-');
+const today = () => new Date(Date.now() + 3600e3).toISOString().slice(0, 10);
+function avatar(name, role) {
+  const ini = String(name || '?').split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+  return `<span class="avatar ${role === 'herder' ? 't-booked' : role === 'mediator' ? 't-danger' : 't-open'}">${esc(ini)}</span>`;
+}
+function toast(msg, err) {
+  const el = document.createElement('div');
+  el.className = `toast${err ? ' err' : ''}`; el.textContent = msg;
+  $('toasts').append(el); setTimeout(() => el.remove(), 3800);
+}
+async function api(url, body, method = body === undefined ? 'GET' : 'POST') {
+  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+  if (r.status === 401) { location.href = `/login?next=${encodeURIComponent(location.pathname + location.hash)}`; throw new Error('auth'); }
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || 'Request failed');
+  return j;
+}
+function chips(el, options, cur, onPick) {
+  el.innerHTML = options.map(([v, l, n]) => `<button class="chip ${v === cur ? 'on' : ''}" data-v="${esc(v)}">${esc(l)}${n != null ? `<span class="n">${n}</span>` : ''}</button>`).join('');
+  el.onclick = (e) => { const b = e.target.closest('.chip'); if (b) onPick(b.dataset.v); };
+}
+const emptyRow = (cols, text, ic = 'search') => `<tr><td colspan="${cols}"><div class="empty">${icon(ic)}<div>${esc(text)}</div></div></td></tr>`;
+
+// ---------- state ----------
+let D = null;
+const UI = { map: 'all', fields: 'all', fieldsWard: '', deals: 'all', inc: 'open', people: 'all', msg: 'all' };
+let usersByPhone = {};
+const nameOf = (p) => usersByPhone[p]?.name || D?.mediators.find((m) => m.phone === p)?.name || phone(p);
+
+// ---------- theme ----------
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem('fp-theme', t); } catch {}
+}
+const isDark = () => document.documentElement.dataset.theme === 'dark' || (!document.documentElement.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches);
+$('theme').onclick = () => setTheme(isDark() ? 'light' : 'dark');
+
+// ---------- maps ----------
+const tileUrl = () => 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const MAPS = {};
+function getMap(id) {
+  if (MAPS[id]) return MAPS[id];
+  const map = L.map(id, { scrollWheelZoom: id === 'map-big', zoomControl: true }).setView([12.0, 8.52], 9);
+  const tiles = L.tileLayer(tileUrl(), { maxZoom: 18, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+  MAPS[id] = { map, tiles, layer: L.layerGroup().addTo(map), fitted: false };
+  return MAPS[id];
+}
+function fieldPos(f) { const a = f.id * 2.39996, r = 0.008 + (f.id % 5) * 0.005; return [f.lat + Math.sin(a) * r, f.lng + Math.cos(a) * r]; }
+function fieldPopup(f) {
+  return `<b>Field #${f.id} · ${CROP[f.crop] || f.crop}</b> ${pill(f.status, STATUS[f.status])}<br>
+    ${esc(f.ward_name)}, near ${esc(LANDMARK[f.landmark] || f.landmark)} · ${SIZE[f.size] || ''}<br>
+    Farmer: ${esc(f.farmer_name)} · ${phone(f.farmer_phone)}<br>
+    ${f.status === 'standing' ? `Harvest expected ${day(f.expected_harvest)}` : ''}
+    ${f.status === 'open' ? `${terms(f)} · from ${day(f.open_from)} for ${f.open_days} days` : ''}`;
+}
+function drawMap(id, filter = 'all') {
+  const m = getMap(id);
+  m.layer.clearLayers();
+  const pts = [];
+  for (const w of D.wards) {
+    if (w.lat == null) continue;
+    pts.push([w.lat, w.lng]);
+    L.circle([w.lat, w.lng], { radius: 3200, color: COLORS.open, weight: 1, opacity: .5, fillOpacity: 0.05, dashArray: '4 4' })
+      .bindTooltip(`<b>${esc(w.name)}</b> · code ${esc(w.code)}<br>${w.open} open · ${w.standing} standing`).addTo(m.layer);
+  }
+  const byId = {};
+  for (const f of D.fields) {
+    if (f.lat == null) continue;
+    byId[f.id] = f;
+    if (filter !== 'all' && f.status !== filter && !(filter === 'harvested' && f.status === 'closed')) continue;
+    L.circleMarker(fieldPos(f), { radius: 8, color: '#fff', weight: 2, fillColor: COLORS[f.status], fillOpacity: 1 }).bindPopup(fieldPopup(f)).addTo(m.layer);
+  }
+  for (const i of D.incidents) {
+    const f = byId[i.field_id];
+    if (!f || i.status !== 'open' || (filter !== 'all' && filter !== 'incidents')) continue;
+    L.circleMarker(fieldPos(f), { radius: 15, color: '#c4392d', weight: 2.5, fill: true, fillOpacity: .08, className: 'inc-ring' })
+      .bindTooltip(`INC-${i.id}: ${KIND[i.kind]}`).addTo(m.layer);
+  }
+  if (!m.fitted && pts.length) { m.map.fitBounds(pts, { padding: [30, 30] }); m.fitted = true; }
+  setTimeout(() => m.map.invalidateSize(), 50);
+}
+const LEGEND = `<span><i style="background:${COLORS.standing}"></i>Standing - keep herds out</span><span><i style="background:${COLORS.open}"></i>Open for grazing</span>
+  <span><i style="background:${COLORS.booked}"></i>Herd on field</span><span><i style="background:${COLORS.harvested}"></i>Harvested / closed</span>
+  <span><i style="border:2px solid #c4392d"></i>Open damage report</span>`;
+$('legend-1').innerHTML = LEGEND; $('legend-2').innerHTML = LEGEND;
+
+// ---------- views ----------
+const VIEWS = {
+  overview: ['Overview', 'This season across your wards'],
+  map: ['Field map', 'Where herds can graze, and where to stay out'],
+  fields: ['Fields', 'Every registered field and its harvest status'],
+  deals: ['Grazing deals', 'Pass-code bookings between farmers and herders'],
+  incidents: ['Damage reports', 'Reported over USSD and sent to mediators by SMS'],
+  people: ['People', 'Farmers and herders registered over USSD, voice and SMS'],
+  messages: ['Messages', 'Every SMS, call and airtime top-up sent by this instance'],
+  settings: ['Settings', 'Connection, mediators, wards and actions'],
+};
+function currentView() { const v = location.hash.slice(1); return VIEWS[v] ? v : 'overview'; }
+function showView() {
+  const v = currentView();
+  document.querySelectorAll('.view').forEach((s) => s.classList.toggle('on', s.id === `v-${v}`));
+  document.querySelectorAll('#nav a[data-v]').forEach((a) => a.classList.toggle('on', a.dataset.v === v));
+  $('title').textContent = VIEWS[v][0]; $('subtitle').textContent = VIEWS[v][1];
+  document.body.classList.remove('nav-open');
+  if (D) render();
+}
+window.addEventListener('hashchange', showView);
+$('menu').onclick = () => document.body.classList.toggle('nav-open');
+
+function render() {
+  const v = currentView();
+  $('badge-inc').textContent = D.stats.openIncidents || '';
+  ({ overview: renderOverview, map: renderMap, fields: renderFields, deals: renderDeals, incidents: renderIncidents,
+     people: renderPeople, messages: renderMessages, settings: renderSettings })[v]();
+}
+
+function renderOverview() {
+  const s = D.stats;
+  const kpi = (tone, ic, v, l, f) => `<div class="card kpi"><div class="ic ${tone}">${icon(ic)}</div><div class="v">${v}</div><div class="l">${l}</div><div class="f">${f}</div></div>`;
+  $('kpis').innerHTML = [
+    kpi('t-standing', 'sprout', s.standing, 'Standing fields', 'Herds kept out'),
+    kpi('t-open', 'map', s.open, 'Open for grazing', 'Stalks offered to herders'),
+    kpi('t-booked', 'cow', s.booked, 'Herds on fields', 'Holding a pass code'),
+    kpi('t-brand', 'shield', s.dealsCompleted, 'Peaceful deals', 'Closed with no damage'),
+    kpi('t-danger', 'alert', s.openIncidents, 'Open damage reports', 'Mediators alerted'),
+    kpi('t-accent', 'coin', `₦${s.airtime.toLocaleString()}`, 'Airtime rewarded', `${s.farmers} farmers · ${s.herders} herders`),
+  ].join('');
+  drawMap('map-small');
+
+  // needs attention
+  const now = today();
+  const items = [
+    ...D.incidents.filter((i) => i.status === 'open').map((i) => ({ tone: 't-danger', ic: 'alert',
+      t: `<b>INC-${i.id}</b> ${esc(KIND[i.kind])}`, s: `Field #${i.field_id} · ${esc(i.ward_name)} · ${esc(i.reporter_name || '')}`,
+      act: `<button class="btn soft sm" data-resolve="${i.id}">Resolve</button>` })),
+    ...D.bookings.filter((b) => b.status === 'ended').map((b) => ({ tone: 't-accent', ic: 'clock',
+      t: `<b>Booking ${esc(b.code)}</b> ended`, s: `Waiting for ${esc(b.farmer_name)} to confirm the herd left`, act: '' })),
+    ...D.fields.filter((f) => f.status === 'standing' && f.expected_harvest < now).map((f) => ({ tone: 't-standing', ic: 'sprout',
+      t: `<b>Field #${f.id}</b> past expected harvest`, s: `${esc(f.farmer_name)} · ${esc(f.ward_name)} · due ${day(f.expected_harvest)}`, act: '' })),
+  ];
+  $('att-count').textContent = items.length;
+  $('att-count').className = `pill ${items.length ? 'disputed' : 'open'}`;
+  $('attention').innerHTML = items.length ? items.map((x) => `<div class="li"><span class="dot ${x.tone}">${icon(x.ic)}</span>
+    <div class="tx">${x.t}<div class="cell-sub">${x.s}</div></div>${x.act}</div>`).join('')
+    : `<div class="empty">${icon('check')}<div>All clear. Nothing needs action.</div></div>`;
+
+  // ward bars
+  const per = {};
+  for (const f of D.fields) {
+    const w = (per[f.ward_id] ||= { open: 0, booked: 0, standing: 0, harvested: 0 });
+    w[f.status === 'closed' ? 'harvested' : f.status]++;
+  }
+  const rows = D.wards.map((w) => ({ w, c: per[w.id] || { open: 0, booked: 0, standing: 0, harvested: 0 } }))
+    .map((r) => ({ ...r, total: r.c.open + r.c.booked + r.c.standing + r.c.harvested })).sort((a, b) => b.total - a.total);
+  const max = Math.max(1, ...rows.map((r) => r.total));
+  $('ward-bars').innerHTML = rows.map(({ w, c, total }) => `<div class="ward"><div class="nm">${esc(w.name)}<small>${esc(w.lga)} · ${esc(w.code)}</small></div>
+    <div class="bar" style="width:${Math.max(8, (total / max) * 100)}%">${['open', 'booked', 'standing', 'harvested'].map((k) => c[k] ? `<span style="width:${(c[k] / total) * 100}%;background:${COLORS[k]}" title="${c[k]} ${k}"></span>` : '').join('')}</div>
+    <div class="ct">${total} field${total === 1 ? '' : 's'}</div></div>`).join('');
+
+  // live activity
+  const ev = [
+    ...D.messages.map((m) => ({ at: m.created_at, tone: m.channel === 'airtime' ? 't-accent' : m.channel === 'voice' ? 't-booked' : 't-brand',
+      ic: m.channel === 'airtime' ? 'coin' : m.channel === 'voice' ? 'call' : 'message',
+      t: m.channel === 'airtime' ? `<b>${esc(m.body)}</b> airtime to ${esc(nameOf(m.recipient))}` : m.channel === 'voice' ? `<b>Call</b> to ${esc(nameOf(m.recipient))}` : `<b>SMS</b> to ${esc(nameOf(m.recipient))}`,
+      s: m.channel === 'airtime' ? m.status : m.body })),
+    ...D.bookings.map((b) => ({ at: b.created_at, tone: 't-booked', ic: 'ticket', t: `<b>${esc(b.herder_name || 'Herder')}</b> booked field #${b.field_id}`, s: `${esc(b.ward_name)} · pass code ${esc(b.code)}` })),
+    ...D.incidents.map((i) => ({ at: i.created_at, tone: 't-danger', ic: 'alert', t: `<b>Damage reported</b> on field #${i.field_id}`, s: `${KIND[i.kind]} · ${i.ward_name}` })),
+  ].sort((a, b) => ts(b.at) - ts(a.at)).slice(0, 25);
+  $('feed').innerHTML = ev.length ? ev.map((e) => `<div class="li"><span class="dot ${e.tone}">${icon(e.ic)}</span>
+    <div class="tx">${e.t}<div class="cell-sub">${esc(e.s)}</div></div><span class="when">${rel(e.at)}</span></div>`).join('')
+    : `<div class="empty">${icon('message')}<div>No activity yet. Try the phone simulator.</div></div>`;
+}
+
+function renderMap() {
+  const n = (st) => D.fields.filter((f) => f.status === st || (st === 'harvested' && f.status === 'closed')).length;
+  chips($('map-filter'), [['all', 'All fields', D.fields.length], ['standing', 'Standing', n('standing')], ['open', 'Open', n('open')],
+    ['booked', 'Booked', n('booked')], ['harvested', 'Harvested', n('harvested')], ['incidents', 'Damage reports', D.stats.openIncidents]],
+  UI.map, (v) => { UI.map = v; renderMap(); });
+  drawMap('map-big', UI.map);
+  $('ward-list').innerHTML = `<div class="cell-sub" style="padding:2px 8px 6px">Jump to ward</div>` + D.wards.filter((w) => w.lat != null)
+    .map((w) => `<button data-fly="${w.id}"><span>${esc(w.name)} <span class="muted">${esc(w.code)}</span></span><span class="muted">${w.open}/${w.standing}</span></button>`).join('');
+  $('ward-list').onclick = (e) => {
+    const b = e.target.closest('[data-fly]'); if (!b) return;
+    const w = D.wards.find((x) => x.id === Number(b.dataset.fly));
+    getMap('map-big').map.flyTo([w.lat, w.lng], 13, { duration: .8 });
+  };
+}
+
+function renderFields() {
+  const by = (st) => D.fields.filter((f) => st === 'all' || f.status === st).length;
+  chips($('fields-filter'), [['all', 'All', by('all')], ...['standing', 'open', 'booked', 'harvested', 'closed'].map((s) => [s, STATUS[s], by(s)])],
+    UI.fields, (v) => { UI.fields = v; renderFields(); });
+  const sel = $('fields-ward');
+  if (sel.options.length !== D.wards.length + 1) sel.innerHTML = '<option value="">All wards</option>' + D.wards.map((w) => `<option value="${w.id}">${esc(w.name)}</option>`).join('');
+  const q = $('fields-q').value.trim().toLowerCase();
+  const rows = D.fields.filter((f) => (UI.fields === 'all' || f.status === UI.fields) && (!sel.value || f.ward_id === Number(sel.value))
+    && (!q || `#${f.id} ${f.crop} ${CROP[f.crop]} ${f.farmer_name} ${f.farmer_phone} ${phone(f.farmer_phone)} ${f.ward_name}`.toLowerCase().includes(q)))
+    .sort((a, b) => b.id - a.id);
+  $('fields-table').innerHTML = `<thead><tr><th>Field</th><th>Location</th><th>Farmer</th><th>Status</th><th>Details</th><th>Updated</th></tr></thead><tbody>` +
+    (rows.length ? rows.map((f) => `<tr><td><div class="cell-main">#${f.id} · ${CROP[f.crop] || esc(f.crop)}</div><div class="cell-sub">${SIZE[f.size] || ''}</div></td>
+      <td><div>${esc(f.ward_name)}</div><div class="cell-sub">near ${esc(LANDMARK[f.landmark] || f.landmark)}</div></td>
+      <td><div class="who">${avatar(f.farmer_name, 'farmer')}<div><div class="cell-main">${esc(f.farmer_name)}</div><div class="cell-sub">${phone(f.farmer_phone)}</div></div></div></td>
+      <td>${pill(f.status, STATUS[f.status])}</td>
+      <td class="cell-sub">${f.status === 'standing' ? `Harvest ~${day(f.expected_harvest)}` : f.status === 'open' || f.status === 'booked' ? `${terms(f)} · ${day(f.open_from)}, ${f.open_days}d` : '-'}</td>
+      <td class="cell-sub">${rel(f.updated_at)}</td></tr>`).join('') : emptyRow(6, 'No fields match these filters')) + '</tbody>';
+}
+$('fields-q').oninput = renderFields; $('fields-ward').onchange = renderFields;
+
+function renderDeals() {
+  const by = (st) => D.bookings.filter((b) => st === 'all' || b.status === st).length;
+  chips($('deals-filter'), [['all', 'All', by('all')], ['active', 'Active', by('active')], ['ended', 'Awaiting confirmation', by('ended')],
+    ['completed', 'Completed', by('completed')], ['disputed', 'Disputed', by('disputed')]], UI.deals, (v) => { UI.deals = v; renderDeals(); });
+  const q = $('deals-q').value.trim().toLowerCase();
+  const rows = D.bookings.filter((b) => (UI.deals === 'all' || b.status === UI.deals)
+    && (!q || `${b.code} ${b.herder_name} ${b.farmer_name} ${b.herder_phone} ${phone(b.herder_phone)} ${b.ward_name}`.toLowerCase().includes(q)));
+  const now = Date.now();
+  $('deals-table').innerHTML = `<thead><tr><th>Pass code</th><th>Field</th><th>Herder</th><th>Farmer</th><th>Grazing window</th><th>Status</th></tr></thead><tbody>` +
+    (rows.length ? rows.map((b) => {
+      const s = new Date(`${b.start_date}T00:00:00`), e = new Date(`${b.end_date}T23:59:59`);
+      const pct = Math.min(100, Math.max(0, ((now - s) / (e - s)) * 100));
+      return `<tr><td><span class="code">${esc(b.code)}</span></td>
+      <td><div class="cell-main">#${b.field_id} · ${CROP[b.crop] || ''}</div><div class="cell-sub">${esc(b.ward_name)}</div></td>
+      <td><div class="who">${avatar(b.herder_name, 'herder')}<div><div class="cell-main">${esc(b.herder_name || 'Herder')}</div><div class="cell-sub">${phone(b.herder_phone)}</div></div></div></td>
+      <td>${esc(b.farmer_name)}</td>
+      <td><div class="cell-sub">${day(b.start_date)} → ${day(b.end_date)}</div>${b.status === 'active' ? `<div class="progress"><span style="width:${pct}%"></span></div>` : ''}</td>
+      <td>${pill(b.status, b.status === 'ended' ? 'awaiting code' : b.status)}</td></tr>`;
+    }).join('') : emptyRow(6, 'No grazing deals yet', 'ticket')) + '</tbody>';
+}
+$('deals-q').oninput = renderDeals;
+
+function renderIncidents() {
+  const by = (st) => D.incidents.filter((i) => st === 'all' || i.status === st).length;
+  chips($('inc-filter'), [['open', 'Open', by('open')], ['resolved', 'Resolved', by('resolved')], ['all', 'All', by('all')]],
+    UI.inc, (v) => { UI.inc = v; renderIncidents(); });
+  const rows = D.incidents.filter((i) => UI.inc === 'all' || i.status === UI.inc);
+  const meds = (wardId) => D.mediators.filter((m) => !m.ward_id || m.ward_id === wardId).map((m) => m.name).join(', ') || 'No mediator for this ward';
+  $('inc-grid').innerHTML = rows.length ? rows.map((i) => `<div class="card inc ${i.status}">
+    ${pill(i.status === 'open' ? 'open-incident' : 'resolved', i.status === 'open' ? 'Open' : 'Resolved')} <span class="muted" style="font-size:12px">INC-${i.id} · ${rel(i.created_at)}</span>
+    <h4>${esc(KIND[i.kind])}</h4>
+    <div class="meta"><span>${icon('sprout')} Field #${i.field_id} · ${CROP[i.crop] || ''} · ${esc(i.ward_name)}, near ${esc(LANDMARK[i.landmark] || i.landmark)}</span>
+      <span>${icon('users')} Reported by ${esc(i.reporter_name || '')} · ${phone(i.reporter_phone)}</span>
+      <span>${icon('clock')} Happened ${day(i.occurred_on)}${i.booking_id ? ` · linked to booking #${i.booking_id}` : ''}</span>
+      <span>${icon('shield')} Alerted: ${esc(meds(i.ward_id))}</span></div>
+    ${i.status === 'open' ? `<button class="btn sm" data-resolve="${i.id}">${icon('check')}Mark resolved</button>` : ''}
+  </div>`).join('') : `<div class="card"><div class="empty">${icon('shield')}<div>${UI.inc === 'open' ? 'No open damage reports. Peace in the fields.' : 'Nothing here yet.'}</div></div></div>`;
+}
+
+function renderPeople() {
+  const by = (r) => D.users.filter((u) => r === 'all' || u.role === r).length;
+  chips($('people-filter'), [['all', 'Everyone', by('all')], ['farmer', 'Farmers', by('farmer')], ['herder', 'Herders', by('herder')]],
+    UI.people, (v) => { UI.people = v; renderPeople(); });
+  const q = $('people-q').value.trim().toLowerCase();
+  const rows = D.users.filter((u) => (UI.people === 'all' || u.role === UI.people) && (!q || `${u.name} ${u.phone} ${phone(u.phone)}`.toLowerCase().includes(q)));
+  $('people-table').innerHTML = `<thead><tr><th>Name</th><th>Role</th><th>Ward</th><th>Language</th><th>Fields</th><th>Deals</th><th>Airtime</th><th>Joined</th></tr></thead><tbody>` +
+    (rows.length ? rows.map((u) => `<tr><td><div class="who">${avatar(u.name, u.role)}<div><div class="cell-main">${esc(u.name)}</div><div class="cell-sub">${phone(u.phone)}</div></div></div></td>
+      <td>${pill(u.role === 'herder' ? 'booked' : 'open', u.role === 'herder' ? 'Herder' : 'Farmer')}</td>
+      <td>${esc(u.ward_name || '-')}</td><td>${u.lang === 'ha' ? 'Hausa' : 'English'}</td>
+      <td>${u.role === 'farmer' ? u.fields : '-'}</td><td>${u.deals}</td><td>₦${u.airtime}</td><td class="cell-sub">${rel(u.created_at)}</td></tr>`).join('')
+      : emptyRow(8, 'No one registered yet. Dial in from the simulator.', 'users')) + '</tbody>';
+}
+$('people-q').oninput = renderPeople;
+
+function renderMessages() {
+  const by = (c) => D.messages.filter((m) => c === 'all' || m.channel === c).length;
+  chips($('msg-filter'), [['all', 'All', by('all')], ['sms', 'SMS', by('sms')], ['airtime', 'Airtime', by('airtime')], ['voice', 'Calls', by('voice')]],
+    UI.msg, (v) => { UI.msg = v; renderMessages(); });
+  const q = $('msg-q').value.trim().toLowerCase();
+  const rows = D.messages.filter((m) => (UI.msg === 'all' || m.channel === UI.msg) && (!q || `${m.body} ${m.recipient} ${phone(m.recipient)} ${nameOf(m.recipient)}`.toLowerCase().includes(q)));
+  $('msg-list').innerHTML = rows.length ? rows.map((m) => `<div class="li">
+    <span class="dot ${m.channel === 'airtime' ? 't-accent' : m.channel === 'voice' ? 't-booked' : 't-brand'}">${icon(m.channel === 'airtime' ? 'coin' : m.channel === 'voice' ? 'call' : 'message')}</span>
+    <div class="tx"><b>${esc(nameOf(m.recipient))}</b> <span class="muted">${phone(m.recipient)}</span>
+      <div style="margin-top:2px">${m.channel === 'airtime' ? `Airtime top-up: <b>${esc(m.body)}</b>` : esc(m.body)}</div></div>
+    <div style="text-align:right">${pill(m.status, m.status)}<div class="when" style="margin-top:4px">${rel(m.created_at)}</div></div></div>`).join('')
+    : `<div class="empty">${icon('message')}<div>No messages match.</div></div>`;
+}
+$('msg-q').oninput = renderMessages;
+
+function renderSettings() {
+  const i = D.info, cb = (p) => `${location.origin}${p}`;
+  const row = (k, v, copy) => `<span class="k">${k}</span><span>${v}</span>${copy ? `<button class="btn ghost sm" data-copy="${esc(copy)}">${icon('copy')}Copy</button>` : '<span></span>'}`;
+  $('instance-kv').innerHTML = [
+    row('Mode', pill(i.mode === 'live' ? 'open' : i.mode === 'sandbox' ? 'booked' : 'ended', i.mode)),
+    row('USSD code', `<code>${esc(i.ussdCode)}</code>`, i.ussdCode),
+    row('USSD callback', `<code>${cb('/ussd')}</code>`, cb('/ussd')),
+    row('Voice callback', `<code>${cb('/voice')}</code>`, cb('/voice')),
+    row('SMS callback', `<code>${cb('/sms')}</code>`, cb('/sms')),
+  ].join('');
+  $('med-table').innerHTML = `<thead><tr><th>Mediator</th><th>Covers</th><th></th></tr></thead><tbody>` + (D.mediators.length ? D.mediators.map((m) =>
+    `<tr><td><div class="who">${avatar(m.name, 'mediator')}<div><div class="cell-main">${esc(m.name)}</div><div class="cell-sub">${esc(m.role || '')} · ${phone(m.phone)}</div></div></div></td>
+     <td>${esc(m.ward_name || 'All wards')}</td><td style="text-align:right"><button class="btn ghost sm icon" title="Remove" data-del-mediator="${m.id}">${icon('trash')}</button></td></tr>`).join('')
+    : emptyRow(3, 'No mediators yet. Add the Ardo, village head or ward officer.', 'shield')) + '</tbody>';
+  const sel = $('med-ward'), cur = sel.value;
+  sel.innerHTML = '<option value="">All wards</option>' + D.wards.map((w) => `<option value="${w.id}">${esc(w.name)}</option>`).join('');
+  sel.value = cur;
+  $('ward-table').innerHTML = `<thead><tr><th>Code</th><th>Ward</th><th>LGA</th><th>Open</th><th>Standing</th></tr></thead><tbody>` + D.wards.map((w) =>
+    `<tr><td><span class="code" style="font-size:13px">${esc(w.code)}</span></td><td class="cell-main">${esc(w.name)}</td><td>${esc(w.lga)}</td><td>${w.open}</td><td>${w.standing}</td></tr>`).join('') + '</tbody>';
+}
+
+// ---------- actions ----------
+document.addEventListener('click', async (e) => {
+  const t = e.target.closest('[data-resolve],[data-del-mediator],[data-copy]');
+  if (!t) return;
+  try {
+    if (t.dataset.resolve) { await api(`/api/incidents/${t.dataset.resolve}/resolve`, {}); toast(`INC-${t.dataset.resolve} marked resolved`); }
+    if (t.dataset.delMediator) { if (!confirm('Remove this mediator?')) return; await api(`/api/mediators/${t.dataset.delMediator}`, {}, 'DELETE'); toast('Mediator removed'); }
+    if (t.dataset.copy) { await navigator.clipboard.writeText(t.dataset.copy); toast('Copied'); return; }
+    load();
+  } catch (err) { if (err.message !== 'auth') toast(err.message, true); }
+});
+async function runReminders() {
+  const r = await api('/api/jobs/run', {});
+  toast(`Sent ${r.harvestReminders} harvest reminder(s) · ${r.bookingsEnded} booking(s) ended · ${r.listingsExpired} listing(s) expired`);
+  load();
+}
+$('btn-remind').onclick = runReminders; $('btn-remind-2').onclick = runReminders;
+$('btn-seed').onclick = async () => {
+  const r = await api('/api/demo/seed', {});
+  toast(r.seeded ? 'Demo season loaded' : 'Demo data is already loaded');
+  Object.values(MAPS).forEach((m) => { m.fitted = false; });
+  load();
+};
+for (const [id, url, msg] of [['med-form', '/api/mediators', 'Mediator added'], ['ward-form', '/api/wards', 'Ward added']]) {
+  $(id).onsubmit = async (e) => {
+    e.preventDefault();
+    try { await api(url, Object.fromEntries(new FormData(e.target))); e.target.reset(); toast(msg); load(); }
+    catch (err) { toast(err.message, true); }
+  };
+}
+$('logout').onclick = async () => { await fetch('/auth/logout', { method: 'POST' }); location.href = '/login'; };
+
+// ---------- live data ----------
+let lastOk = 0;
+let lastSig = '';
+async function load(force) {
+  try {
+    const r = await fetch('/api/overview');
+    if (r.status === 401) { location.href = `/login?next=${encodeURIComponent(location.pathname + location.hash)}`; return; }
+    const text = await r.text();
+    lastOk = Date.now();
+    $('live').classList.remove('off');
+    // Skip re-rendering (and closing map popups) when nothing changed
+    if (text === lastSig && !force) return;
+    lastSig = text;
+    D = JSON.parse(text);
+    usersByPhone = Object.fromEntries(D.users.map((u) => [u.phone, u]));
+    $('inst-mode').textContent = `${D.info.mode === 'live' ? 'Live' : D.info.mode === 'sandbox' ? 'Sandbox' : 'Dry-run'} instance`;
+    $('inst-ussd').textContent = D.info.ussdCode;
+    render();
+  } catch (err) {
+    if (err.message !== 'auth') $('live').classList.add('off');
+  }
+}
+setInterval(() => {
+  const s = Math.round((Date.now() - lastOk) / 1000);
+  $('live-t').textContent = lastOk ? (s < 5 ? 'Live · just updated' : `Live · updated ${s}s ago`) : 'Connecting…';
+}, 1000);
+showView();
+load();
+setInterval(() => { if (!document.hidden) load(); }, 6000);
+</script>
+</body>
+</html>

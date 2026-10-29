@@ -10,6 +10,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY src ./src
 COPY public ./public
+COPY views ./views
 
 RUN mkdir -p /data && chown node:node /data
 USER node

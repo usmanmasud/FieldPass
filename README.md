@@ -26,8 +26,9 @@ npm test                  # end-to-end season test
 ```
 
 - `/` shows the landing page and the callback URLs to paste into Africa's Talking
-- `/simulator` has three virtual phones (USSD, voice keypad, SMS) with live inboxes
-- `/dashboard` has the map and admin view. Click **Load demo season** for sample data.
+- `/login` signs you in to the admin area with `ADMIN_PASSWORD` (cookie session; no password set = open)
+- `/dashboard` is the ward dashboard: KPIs, live map, needs-attention queue, activity feed, fields, deals, damage reports, people, message log and settings (mediators, wards, callback URLs). Light and dark mode.
+- `/simulator` has three handsets (farmer, herder, mediator) with a dialer, USSD dialog, voice calls read aloud, and an SMS inbox. **Guided demo** runs the whole season story in Hausa or English with one click.
 
 ### Connect Africa's Talking (sandbox)
 

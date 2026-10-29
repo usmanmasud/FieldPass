@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FieldPass Simulator</title>
+  <link rel="icon" href="/logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script>try { const t = localStorage.getItem('fp-theme'); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
+  <style>
+    body { min-height: 100vh; }
+    .bar { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+    .bar .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 16px; text-decoration: none; color: var(--ink); }
+    .bar .brand img { width: 30px; height: 30px; border-radius: 9px; }
+    .bar .brand small { font-weight: 500; color: var(--muted); font-size: 12px; display: block; }
+    .bar .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+    .layout { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 20px; padding: 20px; max-width: 1500px; margin: 0 auto; align-items: start; }
+
+    /* guided demo */
+    .guide { position: sticky; top: 76px; max-height: calc(100vh - 96px); display: flex; flex-direction: column; }
+    .guide .card-b { overflow: auto; }
+    .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .opts label { font-size: 12px; color: var(--muted); font-weight: 600; display: grid; gap: 4px; }
+    .seg { display: flex; background: var(--bg-2); border-radius: 9px; padding: 3px; }
+    .seg button { flex: 1; border: 0; background: none; padding: 5px 6px; border-radius: 7px; font: 600 12.5px var(--font); color: var(--muted); cursor: pointer; }
+    .seg button.on { background: var(--panel); color: var(--ink); box-shadow: var(--shadow); }
+    .check { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-2); margin-bottom: 12px; }
+    .runall { display: flex; gap: 8px; margin-bottom: 14px; }
+    .runall .btn { flex: 1; }
+    .steps { display: flex; flex-direction: column; gap: 6px; counter-reset: s; }
+    .step { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; padding: 10px; border-radius: 12px; border: 1px solid transparent; align-items: start; transition: background .2s, border-color .2s; }
+    .step:hover { background: var(--panel-2); }
+    .step .n { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 13px; background: var(--bg-2); color: var(--muted); }
+    .step b { display: block; font-size: 13.5px; }
+    .step .d { color: var(--muted); font-size: 12.5px; line-height: 1.4; }
+    .step .who { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; }
+    .step.running { background: var(--brand-soft); border-color: color-mix(in srgb, var(--brand) 40%, transparent); }
+    .step.running .n { background: var(--brand); color: #fff; animation: beat 1s infinite; }
+    .step.done .n { background: var(--open); color: #fff; }
+    .step.error { background: var(--danger-soft); }
+    .step.error .n { background: var(--danger); color: #fff; }
+    .step .err { color: var(--danger); font-size: 12px; margin-top: 4px; white-space: pre-wrap; }
+    @keyframes beat { 50% { transform: scale(1.1); } }
+
+    /* phones */
+    .phones { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; }
+    .ph { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+    .persona { width: 300px; display: flex; gap: 10px; align-items: center; padding: 10px 12px; }
+    .persona .av { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; flex: none; }
+    .persona .nm { font-weight: 700; font-size: 14px; }
+    .persona .num { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; color: var(--muted); background: none; border: 0; padding: 0; width: 140px; }
+    .persona .acts { margin-left: auto; display: flex; gap: 4px; }
+    .t-farmer { background: var(--open-soft); color: var(--open); }
+    .t-herder { background: var(--booked-soft); color: var(--booked); }
+    .t-mediator { background: var(--danger-soft); color: var(--danger); }
+    .med-btn { width: 300px; }
+
+    .device { width: 300px; height: 610px; border-radius: 46px; background: linear-gradient(145deg, #2a2f2c, #0d100e); padding: 11px; box-shadow: 0 30px 60px -20px rgba(0,0,0,.45), inset 0 0 0 2px #3a403c; position: relative; transition: box-shadow .3s; }
+    .device.active { box-shadow: 0 0 0 4px var(--accent), 0 30px 60px -20px rgba(0,0,0,.45); }
+    .scr { position: relative; height: 100%; border-radius: 36px; overflow: hidden; background: #f4f5f7; color: #15191c; display: flex; flex-direction: column; font-size: 14px; }
+    .notch { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 84px; height: 22px; border-radius: 20px; background: #0d100e; z-index: 30; }
+    .sbar { height: 38px; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 22px 4px; font-size: 12px; font-weight: 600; flex: none; }
+    .sbar .ic { display: flex; gap: 4px; align-items: center; }
+    .app { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    .tabs { display: flex; border-top: 1px solid #e3e5e8; background: #fff; flex: none; }
+    .tabs button { flex: 1; border: 0; background: none; padding: 9px 0 12px; font: 600 11.5px var(--font); color: #8a9096; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; position: relative; }
+    .tabs button.on { color: #1f5135; }
+    .tabs .svg-i { width: 20px; height: 20px; }
+    .tabs .bdg { position: absolute; top: 4px; left: 56%; background: #e53935; color: #fff; font-size: 10px; border-radius: 99px; padding: 0 5px; min-width: 16px; }
+    .tabs .bdg:empty { display: none; }
+
+    /* dialer */
+    .dialer { flex: 1; display: flex; flex-direction: column; padding: 4px 18px 10px; }
+    .quick { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+    .quick button { border: 1px solid #d8dde2; background: #fff; border-radius: 99px; padding: 5px 10px; font: 600 11.5px var(--font); color: #1f5135; cursor: pointer; }
+    .display { text-align: center; font-size: 24px; font-weight: 500; letter-spacing: .03em; min-height: 40px; margin: 8px 0 2px; word-break: break-all; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .display .del { border: 0; background: none; color: #8a9096; cursor: pointer; font-size: 20px; }
+    .hint { text-align: center; color: #8a9096; font-size: 11.5px; min-height: 30px; }
+    .keys { display: grid; grid-template-columns: repeat(3, 54px); gap: 7px 22px; margin: auto auto 0; justify-content: center; }
+    .keys button { width: 54px; height: 54px; border-radius: 50%; border: 0; background: #e8eaed; font: 500 22px var(--font); color: #15191c; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
+    .keys button small { font-size: 9px; color: #6c737a; letter-spacing: .1em; margin-top: 2px; }
+    .keys button:active { background: #d5d9dd; }
+    .callbtn { width: 54px; height: 54px; border-radius: 50%; border: 0; background: #2e9e57; color: #fff; display: grid; place-items: center; margin: 10px auto 0; flex: none; cursor: pointer; box-shadow: 0 6px 14px rgba(46,158,87,.35); }
+    .callbtn .svg-i { width: 24px; height: 24px; }
+
+    /* messages */
+    .msgs { flex: 1; display: none; flex-direction: column; min-height: 0; background: #fff; }
+    .msgs .hd { padding: 6px 16px 10px; border-bottom: 1px solid #eceef0; display: flex; align-items: center; gap: 10px; }
+    .msgs .hd .av { width: 34px; height: 34px; border-radius: 50%; background: #1f5135; display: grid; place-items: center; }
+    .msgs .hd .av img { width: 22px; }
+    .msgs .hd b { display: block; font-size: 14px; } .msgs .hd span { font-size: 11.5px; color: #8a9096; }
+    .thread { flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: #f7f8fa; }
+    .bub { max-width: 85%; padding: 8px 11px; border-radius: 16px; font-size: 13px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; }
+    .bub.in { background: #fff; border: 1px solid #eceef0; align-self: flex-start; border-bottom-left-radius: 5px; }
+    .bub.out { background: #1f5135; color: #fff; align-self: flex-end; border-bottom-right-radius: 5px; }
+    .bub.sys { align-self: center; background: #fff4dd; color: #7a5410; border-radius: 10px; font-size: 12px; font-weight: 600; text-align: center; }
+    .bub.call { align-self: center; background: #e5edfb; color: #22488f; border-radius: 10px; font-size: 12px; font-weight: 600; }
+    .bub time { display: block; font-size: 10px; opacity: .6; margin-top: 3px; }
+    .thread .none { margin: auto; color: #8a9096; font-size: 12.5px; text-align: center; padding: 20px; }
+    .compose { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid #eceef0; }
+    .compose input { flex: 1; border: 1px solid #d8dde2; border-radius: 99px; padding: 8px 12px; font: 13px var(--font); outline: none; min-width: 0; }
+    .compose button { border: 0; background: #1f5135; color: #fff; border-radius: 50%; width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer; }
+    .compose .svg-i { width: 16px; height: 16px; }
+
+    /* USSD dialog */
+    .ussd { position: absolute; inset: 0; background: rgba(10,14,12,.5); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 20; }
+    .ussd.on { display: flex; animation: fadein .15s; }
+    .dlg { background: #fff; border-radius: 16px; width: 100%; padding: 18px 18px 8px; box-shadow: 0 20px 40px rgba(0,0,0,.3); }
+    .dlg .txt { white-space: pre-wrap; font-size: 14px; line-height: 1.45; max-height: 300px; overflow: auto; }
+    .dlg .loading { display: flex; gap: 10px; align-items: center; color: #555; }
+    .dlg .sp { width: 18px; height: 18px; border: 2.5px solid #d6dbe0; border-top-color: #00897b; border-radius: 50%; animation: spin .7s linear infinite; }
+    .dlg input { width: 100%; border: 0; border-bottom: 2px solid #00897b; padding: 8px 2px; font: 15px var(--font); outline: none; margin-top: 12px; }
+    .dlg .btns { display: flex; justify-content: flex-end; gap: 4px; margin-top: 8px; }
+    .dlg .btns button { border: 0; background: none; color: #00897b; font: 700 13px var(--font); letter-spacing: .04em; padding: 10px 12px; cursor: pointer; border-radius: 8px; }
+    .dlg .btns button:hover { background: #e6f3f1; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadein { from { opacity: 0; } }
+
+    /* call screen */
+    .call { position: absolute; inset: 0; z-index: 25; display: none; flex-direction: column; align-items: center; color: #fff; padding: 56px 18px 22px; background: radial-gradient(400px 300px at 50% 0%, #2f7a50, transparent), linear-gradient(180deg, #1a4a30, #0c2216); }
+    .call.on { display: flex; animation: fadein .2s; }
+    .call .av { width: 70px; height: 70px; border-radius: 50%; background: rgba(255,255,255,.12); display: grid; place-items: center; }
+    .call .av img { width: 44px; }
+    .call h4 { margin: 10px 0 2px; font-size: 19px; }
+    .call .st { opacity: .75; font-size: 13px; }
+    .call .cap { margin: 14px 0 10px; background: rgba(0,0,0,.28); border-radius: 14px; padding: 10px 12px; font-size: 13px; line-height: 1.45; width: 100%; min-height: 96px; max-height: 150px; overflow: auto; }
+    .call .cap .typed { color: #ffe6a8; font-family: ui-monospace, Consolas, monospace; }
+    .call .keys { margin: auto auto 0; grid-template-columns: repeat(3, 50px); gap: 6px 20px; }
+    .call .keys button { width: 50px; height: 50px; background: rgba(255,255,255,.14); color: #fff; font-size: 19px; }
+    .call .keys button small { color: rgba(255,255,255,.6); }
+    .call .end { width: 58px; height: 58px; border-radius: 50%; border: 0; background: #e53935; color: #fff; display: grid; place-items: center; margin-top: 14px; cursor: pointer; flex: none; }
+    .call .end .svg-i { width: 24px; height: 24px; transform: rotate(135deg); }
+
+    /* notification banner */
+    .banner { position: absolute; top: 40px; left: 8px; right: 8px; z-index: 40; background: rgba(255,255,255,.97); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.2); padding: 10px 12px; display: flex; gap: 10px; transform: translateY(calc(-100% - 60px)); transition: transform .3s cubic-bezier(.2,.9,.3,1.2); cursor: pointer; }
+    .banner.on { transform: none; }
+    .banner .av { width: 30px; height: 30px; border-radius: 8px; background: #1f5135; display: grid; place-items: center; flex: none; }
+    .banner .av img { width: 20px; }
+    .banner b { font-size: 12.5px; display: block; }
+    .banner span { font-size: 12.5px; color: #3a4046; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+    @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .guide { position: static; max-height: none; } }
+    @media (max-width: 520px) { .layout { padding: 12px; } .bar .hide-sm { display: none; } }
+  </style>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="/"><img src="/logo.svg" alt=""><div>FieldPass<small>Phone simulator</small></div></a>
+  <div class="right">
+    <span class="muted hide-sm" id="mode"></span>
+    <button class="btn ghost sm" id="theme"><svg class="svg-i" viewBox="0 0 24 24" data-icon="moon"></svg><span class="hide-sm">Theme</span></button>
+    <a class="btn sm" href="/dashboard"><svg class="svg-i" viewBox="0 0 24 24" data-icon="overview"></svg>Dashboard</a>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="card guide">
+    <div class="card-h"><h3>Guided demo</h3><span class="sub">One season, start to finish</span></div>
+    <div class="card-b">
+      <div class="opts">
+        <label>Language<div class="seg" id="lang"><button data-v="ha" class="on">Hausa</button><button data-v="en">English</button></div></label>
+        <label>Speed<div class="seg" id="speed"><button data-v="1.6">Slow</button><button data-v="1" class="on">Normal</button><button data-v="0.4">Fast</button></div></label>
+      </div>
+      <label class="check"><input type="checkbox" id="speak" checked> Read voice prompts aloud</label>
+      <div class="runall">
+        <button class="btn" id="run-all"><svg class="svg-i" viewBox="0 0 24 24" data-icon="play"></svg>Run full demo</button>
+        <button class="btn ghost" id="reset" title="New phone numbers, start over"><svg class="svg-i" viewBox="0 0 24 24" data-icon="refresh"></svg>Reset</button>
+      </div>
+      <div class="steps" id="steps"></div>
+    </div>
+  </aside>
+
+  <section class="phones" id="phones"></section>
+</div>
+<div class="toasts" id="toasts"></div>
+
+<template id="phone-tpl">
+  <div class="ph">
+    <div class="card persona">
+      <span class="av"><svg class="svg-i" viewBox="0 0 24 24"></svg></span>
+      <div><div class="nm"></div><input class="num" spellcheck="false" title="Phone number"></div>
+      <div class="acts"><button class="btn ghost sm icon new" title="New number"><svg class="svg-i" viewBox="0 0 24 24" data-icon="refresh"></svg></button></div>
+    </div>
+    <div class="device">
+      <div class="scr">
+        <div class="notch"></div>
+        <div class="sbar"><span class="clock">9:41</span><span class="ic">
+          <svg width="16" height="11" viewBox="0 0 16 11"><rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/><rect x="4.5" y="5" width="3" height="6" rx="1" fill="currentColor"/><rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="currentColor"/><rect x="13" y="0" width="3" height="11" rx="1" fill="currentColor" opacity=".35"/></svg>
+          <svg width="22" height="11" viewBox="0 0 22 11"><rect x=".5" y=".5" width="18" height="10" rx="2.5" fill="none" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="12" height="7" rx="1.5" fill="currentColor"/><rect x="19.5" y="3.5" width="2" height="4" rx="1" fill="currentColor" opacity=".5"/></svg></span></div>
+        <div class="app">
+          <div class="dialer">
+            <div class="quick"><button class="q-ussd"></button><button class="q-call">Call FieldPass line</button></div>
+            <div class="display"><span class="dval"></span><button class="del" title="Delete">⌫</button></div>
+            <div class="hint">Dial the USSD code, or call any number to reach the FieldPass voice line</div>
+            <div class="keys">
+              <button>1<small>&nbsp;</small></button><button>2<small>ABC</small></button><button>3<small>DEF</small></button>
+              <button>4<small>GHI</small></button><button>5<small>JKL</small></button><button>6<small>MNO</small></button>
+              <button>7<small>PQRS</small></button><button>8<small>TUV</small></button><button>9<small>WXYZ</small></button>
+              <button>*<small>&nbsp;</small></button><button>0<small>+</small></button><button>#<small>&nbsp;</small></button>
+            </div>
+            <button class="callbtn" title="Call"><svg class="svg-i" viewBox="0 0 24 24" data-icon="call"></svg></button>
+          </div>
+          <div class="msgs">
+            <div class="hd"><span class="av"><img src="/logo.svg" alt=""></span><div><b>FieldPass</b><span class="sc"></span></div></div>
+            <div class="thread"><div class="none">No messages yet.<br>Alerts, pass codes and airtime arrive here.</div></div>
+            <form class="compose"><input placeholder="Text e.g. FIELDS 101"><button title="Send"><svg class="svg-i" viewBox="0 0 24 24" data-icon="send"></svg></button></form>
+          </div>
+        </div>
+        <div class="tabs">
+          <button class="on" data-tab="dialer"><svg class="svg-i" viewBox="0 0 24 24" data-icon="grid"></svg>Keypad</button>
+          <button data-tab="msgs"><svg class="svg-i" viewBox="0 0 24 24" data-icon="message"></svg>Messages<span class="bdg"></span></button>
+        </div>
+
+        <div class="ussd"><div class="dlg"><div class="txt"></div><input inputmode="numeric" autocomplete="off"><div class="btns"><button class="cancel">CANCEL</button><button class="ok">SEND</button></div></div></div>
+
+        <div class="call">
+          <div class="av"><img src="/logo.svg" alt=""></div>
+          <h4>FieldPass Line</h4>
+          <div class="st">Calling…</div>
+          <div class="cap"></div>
+          <div class="keys">
+            <button>1</button><button>2</button><button>3</button><button>4</button><button>5</button><button>6</button>
+            <button>7</button><button>8</button><button>9</button><button>*</button><button>0</button><button>#</button>
+          </div>
+          <button class="end" title="Hang up"><svg class="svg-i" viewBox="0 0 24 24" data-icon="call"></svg></button>
+        </div>
+
+        <div class="banner"><span class="av"><img src="/logo.svg" alt=""></span><div><b>FieldPass</b><span></span></div></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+const ICONS = {
+  overview: '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+  moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  play: '<path d="m6 4 14 8-14 8z"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/>',
+  call: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>',
+  message: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  grid: '<circle cx="6" cy="6" r="1.4"/><circle cx="12" cy="6" r="1.4"/><circle cx="18" cy="6" r="1.4"/><circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/><circle cx="6" cy="18" r="1.4"/><circle cx="12" cy="18" r="1.4"/><circle cx="18" cy="18" r="1.4"/>',
+  send: '<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>',
+  sprout: '<path d="M7 20h10"/><path d="M12 20v-9"/><path d="M12 11c0-4 3-6 7-6 0 4-3 6-7 6z"/><path d="M12 13c0-3-2.5-5-6-5 0 3 2.5 5 6 5z"/>',
+  cow: '<path d="M5 9c-2 0-3-2-3-3 2 0 3 1 3 1M19 9c2 0 3-2 3-3-2 0-3 1-3 1"/><path d="M5 7s1-3 7-3 7 3 7 3v6a7 7 0 0 1-14 0z"/><path d="M10 17h4"/>',
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+};
+const fill = (root) => root.querySelectorAll('[data-icon]').forEach((s) => { s.innerHTML = ICONS[s.dataset.icon]; });
+fill(document);
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const randomNumber = () => `+23480${Math.floor(10000000 + Math.random() * 89999999)}`;
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+function toast(msg, err) {
+  const el = document.createElement('div');
+  el.className = `toast${err ? ' err' : ''}`; el.textContent = msg;
+  $('toasts').append(el); setTimeout(() => el.remove(), 3800);
+}
+async function post(url, data, json) {
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': json ? 'application/json' : 'application/x-www-form-urlencoded' },
+    body: json ? JSON.stringify(data) : new URLSearchParams(data),
+  });
+  if (r.status === 401) { location.href = '/login?next=/simulator'; throw new Error('Login required'); }
+  return r;
+}
+
+let USSD = '*384*47704#';
+const SETTINGS = { lang: 'ha', speed: 1, speak: true };
+const wait = (ms) => sleep(ms * SETTINGS.speed);
+setInterval(() => { const t = new Date().toTimeString().slice(0, 5); document.querySelectorAll('.clock').forEach((c) => { c.textContent = t; }); }, 1000);
+
+// ---------- theme ----------
+const isDark = () => document.documentElement.dataset.theme === 'dark' || (!document.documentElement.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches);
+$('theme').onclick = () => { const t = isDark() ? 'light' : 'dark'; document.documentElement.dataset.theme = t; store.set('fp-theme', t); };
+
+// ---------- phone ----------
+class Phone {
+  constructor({ key, role, title, icon }) {
+    this.role = role;
+    this.el = $('phone-tpl').content.firstElementChild.cloneNode(true);
+    fill(this.el);
+    const q = (s) => this.el.querySelector(s);
+    this.q = q;
+    q('.persona .av').classList.add(`t-${role}`);
+    q('.persona .av svg').innerHTML = ICONS[icon];
+    q('.nm').textContent = title;
+    this.key = key;
+    q('.num').value = store.get(key) || randomNumber();
+    store.set(key, this.number);
+    q('.num').onchange = () => { store.set(key, this.number); this.resetInbox(); };
+    q('.new').onclick = () => this.newNumber();
+    q('.q-ussd').textContent = `Dial ${USSD}`;
+    q('.sc').textContent = `Shortcode ${USSD.match(/\*(\d+)#$/)?.[1] || ''}`;
+
+    // tabs
+    this.el.querySelectorAll('.tabs [data-tab]').forEach((b) => { b.onclick = () => this.tab(b.dataset.tab); });
+
+    // dialer
+    this.dval = '';
+    q('.dialer .keys').onclick = (e) => { const b = e.target.closest('button'); if (b) this.typeDial(b.firstChild.textContent.trim()); };
+    q('.del').onclick = () => { this.dval = this.dval.slice(0, -1); this.drawDial(); };
+    q('.callbtn').onclick = () => this.callPressed();
+    q('.q-ussd').onclick = () => { this.dval = USSD; this.drawDial(); this.callPressed(); };
+    q('.q-call').onclick = () => { this.dval = '0700FIELDPASS'; this.drawDial(); this.callPressed(); };
+
+    // ussd
+    this.session = null; this.text = ''; this.screen = '';
+    q('.ussd .cancel').onclick = () => this.closeUssd();
+    q('.ussd .ok').onclick = () => (this.ussdOpen ? this.ussdSend(q('.ussd input').value) : this.closeUssd());
+    q('.ussd input').onkeydown = (e) => { if (e.key === 'Enter') q('.ussd .ok').click(); };
+
+    // call
+    this.callState = null;
+    q('.call .keys').onclick = (e) => { const b = e.target.closest('button'); if (b) this.press(b.textContent.trim()); };
+    q('.call .end').onclick = () => this.hangup();
+
+    // sms
+    q('.compose').onsubmit = (e) => { e.preventDefault(); this.sendSms(q('.compose input').value); };
+    q('.banner').onclick = () => { this.tab('msgs'); q('.banner').classList.remove('on'); };
+
+    this.lastId = 0; this.unread = 0;
+    this.poll();
+  }
+
+  get number() { return this.q('.num').value.trim(); }
+  newNumber() { this.q('.num').value = randomNumber(); store.set(this.key, this.number); this.resetInbox(); }
+  focus(on) { this.q('.device').classList.toggle('active', on); if (on) this.el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' }); }
+
+  tab(name) {
+    this.el.querySelectorAll('.tabs [data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
+    this.q('.dialer').style.display = name === 'dialer' ? 'flex' : 'none';
+    this.q('.msgs').style.display = name === 'msgs' ? 'flex' : 'none';
+    if (name === 'msgs') { this.unread = 0; this.q('.tabs .bdg').textContent = ''; const th = this.q('.thread'); th.scrollTop = th.scrollHeight; }
+  }
+
+  typeDial(k) { this.dval += k; this.drawDial(); }
+  drawDial() { this.q('.dval').textContent = this.dval; }
+  callPressed() {
+    const v = this.dval.trim();
+    if (!v) return;
+    if (/^\*[\d*]+#$/.test(v)) this.dialUssd(); else this.startCall();
+  }
+
+  // ----- USSD -----
+  showUssd(html, mode) {
+    const q = this.q;
+    q('.ussd').classList.add('on');
+    q('.ussd .txt').innerHTML = html;
+    q('.ussd input').style.display = mode === 'con' ? 'block' : 'none';
+    q('.ussd .cancel').style.display = mode === 'end' ? 'none' : 'inline-block';
+    q('.ussd .ok').textContent = mode === 'end' ? 'OK' : 'SEND';
+    q('.ussd .ok').style.visibility = mode === 'loading' ? 'hidden' : 'visible';
+    q('.ussd input').value = '';
+    if (mode === 'con') setTimeout(() => q('.ussd input').focus({ preventScroll: true }), 30);
+  }
+  async ussdRequest() {
+    this.showUssd('<div class="loading"><span class="sp"></span>USSD code running…</div>', 'loading');
+    const r = await post('/ussd', { sessionId: this.session, serviceCode: USSD, phoneNumber: this.number, text: this.text, networkCode: '62130' });
+    const res = await r.text();
+    this.screen = res.replace(/^(CON|END) /, '');
+    this.ussdOpen = res.startsWith('CON');
+    this.showUssd(esc(this.screen), this.ussdOpen ? 'con' : 'end');
+    if (!this.ussdOpen) this.session = null;
+    return this.screen;
+  }
+  dialUssd() {
+    this.hangup(true);
+    this.session = `sim-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    this.text = '';
+    this.dval = ''; this.drawDial();
+    return this.ussdRequest();
+  }
+  ussdSend(v) {
+    v = String(v).trim();
+    if (!this.session || v === '') return Promise.resolve(this.screen);
+    this.text = this.text === '' ? v : `${this.text}*${v}`;
+    return this.ussdRequest();
+  }
+  closeUssd() { this.session = null; this.ussdOpen = false; this.q('.ussd').classList.remove('on'); }
+  async typeUssd(v) {
+    const inp = this.q('.ussd input');
+    inp.value = '';
+    for (const ch of String(v)) { inp.value += ch; await wait(90); }
+    await wait(250);
+    return this.ussdSend(v);
+  }
+
+  // ----- Voice -----
+  async startCall() {
+    this.closeUssd();
+    const q = this.q;
+    this.callState = { sessionId: `simcall-${Date.now()}`, digits: '', started: Date.now() };
+    q('.call').classList.add('on'); q('.call .st').textContent = 'Calling…'; q('.call .cap').innerHTML = '';
+    this.dval = ''; this.drawDial();
+    await wait(700);
+    if (!this.callState) return;
+    q('.call .st').textContent = 'Connected';
+    clearInterval(this.timer);
+    this.timer = setInterval(() => {
+      if (!this.callState) return clearInterval(this.timer);
+      const s = Math.floor((Date.now() - this.callState.started) / 1000);
+      q('.call .st').textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+    }, 1000);
+    const r = await post('/voice', { isActive: '1', sessionId: this.callState.sessionId, callerNumber: this.number, direction: 'Inbound', destinationNumber: '+2347000000000' });
+    return this.renderVoice(await r.text());
+  }
+  renderVoice(xml) {
+    if (!this.callState) return '';
+    const doc = new DOMParser().parseFromString(xml || '<Response/>', 'application/xml');
+    const gd = doc.getElementsByTagName('GetDigits')[0];
+    const says = gd ? [...gd.getElementsByTagName('Say')].map((s) => s.textContent) : [...doc.getElementsByTagName('Say')].map((s) => s.textContent);
+    const text = says.join(' ');
+    this.q('.call .cap').innerHTML = `🔊 ${esc(text)}${gd ? '<div class="typed"></div>' : ''}`;
+    this.say(text);
+    if (gd) {
+      const u = new URL(gd.getAttribute('callbackUrl'), location.href);
+      Object.assign(this.callState, { url: u.pathname + u.search, numDigits: Number(gd.getAttribute('numDigits')) || 0, finishOnKey: gd.getAttribute('finishOnKey') || '#', digits: '' });
+    } else {
+      this.callState.url = null;
+      setTimeout(() => this.hangup(), Math.min(9000, 1500 + text.length * 45) * SETTINGS.speed);
+    }
+    this.lastSay = text;
+    return text;
+  }
+  async press(k) {
+    const c = this.callState;
+    if (!c || !c.url) return;
+    const done = k === c.finishOnKey;
+    if (!done) c.digits += k;
+    const t = this.q('.call .typed'); if (t) t.textContent = `⌨ ${c.digits}`;
+    if (done || (c.numDigits && c.digits.length >= c.numDigits)) {
+      speechSynthesis?.cancel();
+      const r = await post(c.url, { isActive: '1', sessionId: c.sessionId, callerNumber: this.number, dtmfDigits: c.digits });
+      return this.renderVoice(await r.text());
+    }
+  }
+  async pressKeys(keys) { let out; for (const k of keys) { out = await this.press(k); await wait(220); } return out; }
+  say(text) {
+    try { speechSynthesis.cancel(); if (SETTINGS.speak && text) { const u = new SpeechSynthesisUtterance(text); u.rate = 1.05; speechSynthesis.speak(u); } } catch {}
+  }
+  hangup(silent) {
+    try { speechSynthesis.cancel(); } catch {}
+    if (this.callState && !silent) post('/voice', { isActive: '0', sessionId: this.callState.sessionId, callerNumber: this.number }).catch(() => {});
+    this.callState = null; clearInterval(this.timer);
+    this.q('.call').classList.remove('on');
+  }
+
+  // ----- SMS -----
+  async sendSms(text) {
+    text = String(text).trim();
+    if (!text) return;
+    this.q('.compose input').value = '';
+    this.addBubble('out', text, new Date());
+    await post('/sms', { from: this.number, to: USSD.match(/\*(\d+)#$/)?.[1] || '', text, date: new Date().toISOString(), id: `sim-${Date.now()}` });
+  }
+  resetInbox() { this.lastId = 0; this.unread = 0; this.q('.thread').innerHTML = '<div class="none">No messages yet.<br>Alerts, pass codes and airtime arrive here.</div>'; this.q('.tabs .bdg').textContent = ''; }
+  addBubble(kind, text, at) {
+    const th = this.q('.thread');
+    th.querySelector('.none')?.remove();
+    const b = document.createElement('div');
+    b.className = `bub ${kind}`;
+    b.innerHTML = `${esc(text)}<time>${at.toTimeString().slice(0, 5)}</time>`;
+    th.append(b); th.scrollTop = th.scrollHeight;
+  }
+  notify(text) {
+    const bn = this.q('.banner');
+    bn.querySelector(':scope > div > span').textContent = text;
+    bn.classList.add('on');
+    clearTimeout(this.bnT); this.bnT = setTimeout(() => bn.classList.remove('on'), 4200);
+    if (this.q('.msgs').style.display !== 'flex') { this.unread++; this.q('.tabs .bdg').textContent = this.unread; }
+  }
+  async poll() {
+    try {
+      const r = await fetch(`/api/messages?phone=${encodeURIComponent(this.number)}&since=${this.lastId}`);
+      if (r.status === 401) { location.href = '/login?next=/simulator'; return; }
+      const msgs = r.ok ? await r.json() : [];
+      for (const m of msgs) {
+        this.lastId = Math.max(this.lastId, m.id);
+        const at = new Date(`${m.created_at.replace(' ', 'T')}Z`);
+        if (m.channel === 'airtime') { this.addBubble('sys', `💰 You received ${m.body} airtime`, at); this.notify(`💰 You received ${m.body} airtime from FieldPass`); }
+        else if (m.channel === 'voice') { this.addBubble('call', `📞 Missed call from FieldPass: ${m.body}`, at); this.notify('📞 FieldPass is calling you'); }
+        else { this.addBubble('in', m.body, at); this.notify(m.body); }
+      }
+    } catch {}
+    setTimeout(() => this.poll(), 1500);
+  }
+}
+
+// ---------- phones ----------
+const P = {};
+function buildPhones() {
+  const root = $('phones'); root.innerHTML = '';
+  P.farmer = new Phone({ key: 'fp-farmer', role: 'farmer', title: 'Farmer', icon: 'sprout' });
+  P.herder = new Phone({ key: 'fp-herder', role: 'herder', title: 'Herder', icon: 'cow' });
+  P.mediator = new Phone({ key: 'fp-other', role: 'mediator', title: 'Mediator (Ardo)', icon: 'shield' });
+  for (const p of Object.values(P)) root.append(p.el);
+  const medBtn = document.createElement('button');
+  medBtn.className = 'btn ghost sm med-btn';
+  medBtn.textContent = 'Register this phone as a mediator';
+  medBtn.onclick = () => registerMediator().catch((e) => toast(e.message, true));
+  P.mediator.el.append(medBtn);
+  P.mediator.medBtn = medBtn;
+  refreshMediatorBtn();
+}
+async function refreshMediatorBtn() {
+  try {
+    const d = await (await fetch('/api/overview')).json();
+    const ok = d.mediators.some((m) => m.phone === P.mediator.number);
+    P.mediator.medBtn.textContent = ok ? '✓ Registered as mediator for all wards' : 'Register this phone as a mediator';
+    P.mediator.medBtn.disabled = ok;
+  } catch {}
+}
+async function registerMediator() {
+  await post('/api/mediators', { name: 'Ardo Bello', phone: P.mediator.number, role: 'Ardo (Fulani leader)', ward_id: '' }, true);
+  toast('Mediator registered. Damage reports will reach this phone.');
+  refreshMediatorBtn();
+}
+
+// ---------- guided demo ----------
+const STATE = {};
+const T = {
+  farmerName: 'Malam Sani', herderName: 'Usman Jafaru', lga: 'Dawakin Tofa', ward: 'Dawanau',
+};
+function optionFor(screen, label) {
+  for (const line of screen.split('\n')) {
+    const m = line.match(/^(\d+)\.\s*(.*)$/);
+    if (m && m[2].includes(label)) return m[1];
+  }
+  return /^98\./m.test(screen) ? '98' : null;
+}
+async function pick(phone, label) {
+  for (let i = 0; i < 5; i++) {
+    const o = optionFor(phone.screen, label);
+    if (!o) throw new Error(`Could not find "${label}" on screen:\n${phone.screen}`);
+    await phone.typeUssd(o);
+    if (o !== '98') return;
+  }
+}
+function expectOpen(phone) { if (!phone.ussdOpen) throw new Error(phone.screen); }
+async function finish(phone) { await wait(2200); phone.closeUssd(); }
+const lang = () => (SETTINGS.lang === 'ha' ? '1' : '2');
+
+async function register(phone, role, name) {
+  await phone.dialUssd(); await wait(700);
+  if (!/1\. Hausa/.test(phone.screen)) { await wait(800); phone.closeUssd(); return 'already registered'; }
+  await phone.typeUssd(lang()); await wait(500);
+  await phone.typeUssd(role === 'farmer' ? '1' : '2'); await wait(500);
+  await phone.typeUssd(name); await wait(500);
+  await pick(phone, T.lga); await wait(500);
+  if (/\d\. /.test(phone.screen) && !/FieldPass|Barka|Welcome/.test(phone.screen)) await pick(phone, T.ward);
+  await finish(phone);
+}
+
+const STEPS = [
+  { who: 'farmer', title: 'Farmer registers', desc: 'Dials the USSD code on a basic phone, picks Hausa, enters a name and ward. A welcome SMS arrives.',
+    run: () => register(P.farmer, 'farmer', T.farmerName) },
+  { who: 'herder', title: 'Herder registers', desc: 'Signs up as a herder. Their home ward is added to their route, so they get alerts there.',
+    run: () => register(P.herder, 'herder', T.herderName) },
+  { who: 'mediator', title: 'Ardo joins as mediator', desc: 'The ward dashboard adds the Ardo, who will be alerted by SMS whenever damage is reported.',
+    run: registerMediator },
+  { who: 'farmer', title: 'Farmer adds a standing sorghum field', desc: 'Near the river, harvest due this week. It now shows on the map as "keep herds out".',
+    async run() {
+      const p = P.farmer; await p.dialUssd(); expectOpen(p); await wait(600);
+      await p.typeUssd('1'); await wait(400); await pick(p, T.lga); await wait(300);
+      if (!/Crop:|Amfanin gona:/.test(p.screen)) await pick(p, T.ward);
+      await wait(400); await p.typeUssd('1'); await wait(400); await p.typeUssd('2'); await wait(400); await p.typeUssd('2'); await wait(400); await p.typeUssd('2');
+      STATE.fieldId = p.screen.match(/#(\d+)/)?.[1];
+      if (!STATE.fieldId) throw new Error(p.screen);
+      await finish(p);
+    } },
+  { who: 'herder', title: 'Herder calls the voice line before moving', desc: 'Keys in the ward code and hears which fields are standing and where to keep the herd away.',
+    async run() {
+      const p = P.herder; const code = await wardCode(T.ward);
+      await p.startCall(); await wait(Math.min(5000, 600 + (p.lastSay || '').length * 40));
+      await p.pressKeys(`${code}#`);
+      await wait(Math.min(10000, 1500 + (p.lastSay || '').length * 55));
+      p.hangup();
+    } },
+  { who: 'farmer', title: 'Harvest! Farmer opens the stalks', desc: 'Manure swap for one week, starting today. Herders on this route get an SMS alert, and the farmer earns airtime for the update.',
+    async run() {
+      const p = P.farmer; need('fieldId');
+      await p.dialUssd(); expectOpen(p); await wait(600);
+      await p.typeUssd('2'); await wait(400); await pick(p, `#${STATE.fieldId} `); await wait(400);
+      await p.typeUssd('2'); await wait(400); await p.typeUssd('2'); await wait(400); await p.typeUssd('2'); await wait(400); await p.typeUssd('1');
+      await finish(p);
+    } },
+  { who: 'herder', title: 'Herder books the field', desc: 'Finds open fields in the ward and books. Both sides get an SMS with the 4-digit pass code and each other\'s number.',
+    async run() {
+      const p = P.herder; need('fieldId');
+      await p.dialUssd(); expectOpen(p); await wait(600);
+      await p.typeUssd('1'); await wait(400); await pick(p, T.lga); await wait(300);
+      if (!/#\d+/.test(p.screen)) await pick(p, T.ward);
+      expectOpen(p); await wait(500); await pick(p, `#${STATE.fieldId} `); await wait(900); await p.typeUssd('1');
+      STATE.code = p.screen.match(/(?:Pass code|Lambar shiga) (\d{4})/)?.[1];
+      if (!STATE.code) throw new Error(p.screen);
+      await finish(p);
+    } },
+  { who: 'farmer', title: 'Herd leaves, farmer confirms with the code', desc: 'No damage, so the deal closes and both sides receive airtime for keeping the peace.',
+    async run() {
+      const p = P.farmer; need('code');
+      await p.dialUssd(); expectOpen(p); await wait(600);
+      await p.typeUssd('3'); await wait(400); await p.typeUssd(STATE.code); await wait(900); await p.typeUssd('1');
+      await finish(p);
+    } },
+  { who: 'farmer', title: 'When it goes wrong: damage report', desc: 'Cattle enter a standing crop. The farmer reports it in a few key presses, and the Ardo\'s phone gets an alert immediately.',
+    async run() {
+      const p = P.farmer; need('fieldId');
+      await p.dialUssd(); expectOpen(p); await wait(600);
+      await p.typeUssd('4'); await wait(400); await pick(p, `#${STATE.fieldId} `); await wait(400);
+      await p.typeUssd('1'); await wait(400); await p.typeUssd('1');
+      await finish(p);
+    } },
+];
+function need(k) { if (!STATE[k]) throw new Error('Run the earlier steps first.'); }
+let wardsCache;
+async function wardCode(name) {
+  wardsCache ||= (await (await fetch('/api/overview')).json()).wards;
+  return wardsCache.find((w) => w.name === name)?.code || '101';
+}
+
+const WHO = { farmer: ['Farmer', 'var(--open)'], herder: ['Herder', 'var(--booked)'], mediator: ['Mediator', 'var(--danger)'] };
+function drawSteps() {
+  $('steps').innerHTML = STEPS.map((s, i) => `<div class="step ${s.state || ''}" data-i="${i}">
+    <span class="n">${s.state === 'done' ? '✓' : i + 1}</span>
+    <div><span class="who" style="color:${WHO[s.who][1]}">${WHO[s.who][0]}</span><b>${esc(s.title)}</b><div class="d">${esc(s.desc)}</div>
+      ${s.error ? `<div class="err">${esc(s.error)}</div>` : ''}</div>
+    <button class="btn ghost sm" data-run="${i}" ${busy ? 'disabled' : ''}>${s.state === 'done' ? 'Again' : 'Run'}</button></div>`).join('');
+}
+let busy = false;
+async function runStep(i) {
+  const s = STEPS[i];
+  s.state = 'running'; s.error = null; drawSteps();
+  const phone = P[s.who];
+  phone.focus(true);
+  try { await s.run(); s.state = 'done'; }
+  catch (e) { s.state = 'error'; s.error = e.message; phone.closeUssd(); }
+  finally { phone.focus(false); drawSteps(); }
+  return s.state === 'done';
+}
+$('steps').onclick = async (e) => {
+  const b = e.target.closest('[data-run]');
+  if (!b || busy) return;
+  busy = true; drawSteps();
+  await runStep(Number(b.dataset.run));
+  busy = false; drawSteps();
+};
+$('run-all').onclick = async () => {
+  if (busy) return;
+  busy = true; $('run-all').disabled = true;
+  for (let i = 0; i < STEPS.length; i++) {
+    if (STEPS[i].state === 'done') continue;
+    if (!(await runStep(i))) break;
+    await wait(1200);
+  }
+  busy = false; $('run-all').disabled = false; drawSteps();
+};
+$('reset').onclick = () => {
+  if (busy) return;
+  for (const p of Object.values(P)) { p.closeUssd(); p.hangup(true); p.newNumber(); }
+  for (const s of STEPS) { s.state = null; s.error = null; }
+  for (const k of Object.keys(STATE)) delete STATE[k];
+  refreshMediatorBtn(); drawSteps();
+  toast('Fresh phone numbers: the demo starts from a clean slate');
+};
+
+function seg(id, key, parse = (v) => v) {
+  $(id).onclick = (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    $(id).querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+    SETTINGS[key] = parse(b.dataset.v);
+  };
+}
+seg('lang', 'lang'); seg('speed', 'speed', Number);
+$('speak').onchange = (e) => { SETTINGS.speak = e.target.checked; };
+
+fetch('/info.json').then((r) => r.json()).catch(() => ({})).then((info) => {
+  if (info.ussdCode) USSD = info.ussdCode;
+  if (info.mode) $('mode').textContent = `${info.mode === 'live' ? 'Live' : info.mode === 'sandbox' ? 'Sandbox' : 'Dry-run'} · ${USSD}`;
+  buildPhones();
+  drawSteps();
+});
+</script>
+</body>
+</html>

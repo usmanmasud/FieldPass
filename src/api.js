@@ -35,7 +35,18 @@ api.get('/overview', (req, res) => {
                           LEFT JOIN users h ON h.phone = b.herder_phone LEFT JOIN users fu ON fu.phone = f.farmer_phone
                           ORDER BY b.id DESC LIMIT 50`).all(),
     mediators: db.prepare('SELECT m.*, w.name AS ward_name FROM mediators m LEFT JOIN wards w ON w.id = m.ward_id ORDER BY m.id').all(),
-    messages: db.prepare('SELECT * FROM messages ORDER BY id DESC LIMIT 40').all(),
+    users: db.prepare(`SELECT u.phone, u.name, u.role, u.lang, u.created_at, w.name AS ward_name,
+                       (SELECT COUNT(*) FROM fields f WHERE f.farmer_phone = u.phone) AS fields,
+                       (SELECT COUNT(*) FROM bookings b WHERE b.herder_phone = u.phone)
+                         + (SELECT COUNT(*) FROM bookings b JOIN fields f ON f.id = b.field_id WHERE f.farmer_phone = u.phone) AS deals,
+                       (SELECT COALESCE(SUM(amount), 0) FROM rewards r WHERE r.phone = u.phone AND r.status IN ('sent', 'dry-run')) AS airtime
+                       FROM users u LEFT JOIN wards w ON w.id = u.ward_id ORDER BY u.created_at DESC`).all(),
+    messages: db.prepare('SELECT * FROM messages ORDER BY id DESC LIMIT 200').all(),
+    info: {
+      ussdCode: config.ussdCode,
+      mode: config.dryRun ? 'dry-run' : config.at.sandbox ? 'sandbox' : 'live',
+      authRequired: Boolean(config.adminPassword),
+    },
   });
 });
 
