@@ -24,7 +24,7 @@ Copy these into the "Create Your Own Plugin" form.
 
 ## Technical details
 
-- **Image:** `<registry>/fieldpass:<tag>` (see README "Build & push")
+- **Image:** `registry.africastalking.dev/1p62rk/fieldpass:latest`
 - **Port:** 3000
 - **Database:** none required. Uses embedded SQLite at `/data/fieldpass.db`. Mount a volume at `/data` to keep data across restarts.
 - **Git repo:** (your GitHub URL)

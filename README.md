@@ -56,12 +56,12 @@ docker build -t fieldpass .
 docker run -p 3000:3000 -e SEED_DEMO=true -v fieldpass-data:/data fieldpass
 
 # with the registry credentials from the marketplace submission form:
-docker login <AT_REGISTRY>
-docker tag fieldpass <AT_REGISTRY>/fieldpass:latest
-docker push <AT_REGISTRY>/fieldpass:latest
+docker login registry.africastalking.dev
+docker tag fieldpass registry.africastalking.dev/1p62rk/fieldpass:latest
+docker push registry.africastalking.dev/1p62rk/fieldpass:latest
 ```
 
-CI (`.github/workflows/ci.yml`) runs the tests and builds the image on every push. It also pushes the image when the `AT_REGISTRY`, `AT_REGISTRY_USER` and `AT_REGISTRY_PASSWORD` secrets are set. The submission form copy, env var table and pricing plans are in [marketplace/LISTING.md](marketplace/LISTING.md), and the logo is `marketplace/logo.png`.
+CI (`.github/workflows/ci.yml`) runs the tests and builds the image on every push. On pushes to `main` it also pushes `registry.africastalking.dev/1p62rk/fieldpass` (`latest` and the commit SHA), using the `REGISTRY_HOST`, `REGISTRY_USERNAME` and `REGISTRY_PASSWORD` repository secrets. The submission form copy, env var table and pricing plans are in [marketplace/LISTING.md](marketplace/LISTING.md), and the logo is `marketplace/logo.png`.
 
 ## How it fits together
 
